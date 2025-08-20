@@ -1,17 +1,14 @@
 import Link from "next/link";
 import { readIndex } from "@/lib/store";
 
-export default async function Home() {
-  const all = await readIndex();
-  const latest = [...all]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 5);
+export default async function Articles() {
+  const items = await readIndex();
+  const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date));
   return (
     <main className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-4">Mon Blog</h1>
-      <p className="text-gray-600 mb-6">Derniers articles</p>
+      <h1 className="text-2xl font-semibold mb-4">Tous les articles</h1>
       <ul className="space-y-2">
-        {latest.map((a) => (
+        {sorted.map((a) => (
           <li key={a.slug}>
             <Link
               className="text-blue-600 underline"
@@ -25,11 +22,6 @@ export default async function Home() {
           </li>
         ))}
       </ul>
-      <div className="mt-8">
-        <Link href="/articles" className="text-blue-600 underline">
-          Voir tous les articles →
-        </Link>
-      </div>
     </main>
   );
 }
