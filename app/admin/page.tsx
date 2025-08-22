@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { readIndex } from "@/lib/store";
 import DeleteArticleButton from "../components/DeleteArticleButton";
+import Image from "next/image";
 export default async function AdminPage() {
   const articles = await readIndex();
   const count = articles.length;
@@ -69,7 +70,6 @@ export default async function AdminPage() {
               Renseigne les métadonnées et colle le <strong>HTML</strong> de
               l’article.
             </p>
-
             <form action={saveArticle} className="grid gap-3">
               <label className="form-control">
                 <span className="label">
@@ -117,13 +117,39 @@ export default async function AdminPage() {
               <label className="form-control">
                 <span className="label">
                   <span className="label-text">Date (optionnelle)</span>
-                  <span className="label-text-alt text-base-content/60">
-                    YYYY-MM-DD
-                  </span>
                 </span>
                 <input
                   type="date"
                   name="date"
+                  className="input input-bordered"
+                />
+              </label>
+
+              {/* Image upload */}
+              <label className="form-control">
+                <span className="label">
+                  <span className="label-text">Image de couverture</span>
+                  <span className="label-text-alt text-base-content/60">
+                    JPG, PNG, WEBP (max 8 Mo)
+                  </span>
+                </span>
+                <input
+                  required
+                  type="file"
+                  name="image"
+                  accept="image/*"
+                  className="file-input file-input-bordered"
+                />
+              </label>
+
+              <label className="form-control">
+                <span className="label">
+                  <span className="label-text">Texte alternatif (ALT)</span>
+                </span>
+                <input
+                  type="text"
+                  name="imageAlt"
+                  placeholder="Description de l’image"
                   className="input input-bordered"
                 />
               </label>
@@ -149,8 +175,6 @@ export default async function AdminPage() {
             </form>
           </div>
         </div>
-
-        {/* Liste des articles */}
         <div className="card bg-base-100 shadow-sm">
           <div className="card-body">
             <div className="flex items-center justify-between">
@@ -169,6 +193,7 @@ export default async function AdminPage() {
                 <table className="table">
                   <thead>
                     <tr>
+                      <th>Image</th>
                       <th>Titre</th>
                       <th>Auteur</th>
                       <th>Date</th>
@@ -181,6 +206,22 @@ export default async function AdminPage() {
                       .sort((a, b) => b.date.localeCompare(a.date))
                       .map((a) => (
                         <tr key={a.slug} className="hover">
+                          <td>
+                            {a.imgPath ? (
+                              <Image
+                                width={64}
+                                height={64}
+                                src={`/${a.imgPath}`}
+                                alt={a.title}
+                                className="w-16 h-16 object-cover rounded"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 flex items-center justify-center bg-base-200 text-xs text-base-content/60 rounded">
+                                N/A
+                              </div>
+                            )}
+                          </td>
+
                           <td className="max-w-[280px]">
                             <div className="font-medium truncate">
                               {a.title}

@@ -4,83 +4,164 @@ import { revalidatePath } from "next/cache";
 import fs from "fs/promises";
 import path from "path";
 
-interface PostPayload {
+interface PostIndexEntry {
   slug: string;
   title: string;
   author: string;
-  htmlContent?: string;
-  date?: string;
+  date: string;
+  imgPath: string; // chemin public de l'image (ex: /uploads/slug-123456.webp)
+  imgAlt: string; // texte alternatif de l'image
 }
 
 const articlesDir = path.join(process.cwd(), "data/articles");
 const indexFile = path.join(articlesDir, "index.json");
+const imgDir = path.join(process.cwd(), "public/images");
 
-/**
- * Ajout / édition d’un article
- */
-export async function saveArticle(formData: FormData) {
-  const payload: PostPayload = {
-    slug: String(formData.get("slug") ?? "")
-      .trim()
-      .toLowerCase(),
-    title: String(formData.get("title") ?? "").trim(),
-    author: String(formData.get("author") ?? "").trim(),
-    htmlContent: String(formData.get("htmlContent") ?? ""),
-    date: String(formData.get("date") || new Date().toISOString()),
-  };
-  console.log(payload);
-  console.log(articlesDir);
-  await fs.mkdir(articlesDir, { recursive: true });
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+  "image/avif": "avif",
+};
 
-  // Sauvegarde HTML
-  const htmlPath = path.join(articlesDir, `${payload.slug}.html`);
-  await fs.writeFile(htmlPath, payload.htmlContent ?? "", "utf-8");
+function sanitizeSlug(input: string) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/--+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
-  // Mise à jour index.json
-  let index: PostPayload[] = [];
-  try {
-    index = JSON.parse(await fs.readFile(indexFile, "utf-8"));
-  } catch {
-    index = [];
-  }
-
-  const withoutOld = index.filter((p) => p.slug !== payload.slug);
-  withoutOld.push({ ...payload, htmlContent: undefined });
-  await fs.writeFile(indexFile, JSON.stringify(withoutOld, null, 2), "utf-8");
-
-  revalidatePath("/");
-  revalidatePath("/articles");
-  revalidatePath(`/articles/${payload.slug}`);
+function escapeHtml(s: string) {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 /**
- * Suppression d’un article
+ * Ajout / édition d’un article avec image (facultative)
+ * Champs attendus dans le FormData :
+ * - slug, title, author, htmlContent, date? (YYYY-MM-DD ou ISO)
+ * - image? (File), imageAlt? (string)
  */
-export async function deleteArticle(formData: FormData) {
-  const slug = String(formData.get("slug") ?? "")
-    .trim()
-    .toLowerCase();
-  if (!slug) return;
+export async function saveArticle(formData: FormData) {
+  // Fields normalization
+  const slug = `${sanitizeSlug(
+    String(formData.get("slug") ?? "")
+  )}-${Date.now()}`;
+  const title = String(formData.get("title") ?? "").trim();
+  const author = String(formData.get("author") ?? "").trim();
+  const htmlInput = String(formData.get("htmlContent") ?? "");
+  const dateInput = String(formData.get("date") ?? "");
+  const dateIso =
+    dateInput && /^\d{4}-\d{2}-\d{2}/.test(dateInput)
+      ? new Date(dateInput).toISOString()
+      : new Date().toISOString();
+  const imageAlt = String(formData.get("imageAlt") ?? "").trim();
 
-  // Supprimer fichier HTML
-  const htmlPath = path.join(articlesDir, `${slug}.html`);
-  try {
-    await fs.unlink(htmlPath);
-  } catch {
-    // pas grave si fichier manquant
+  // Make sure folders exist
+  // await fs.mkdir(articlesDir, { recursive: true });
+  await fs.mkdir(path.join(articlesDir, "html"), { recursive: true });
+  await fs.mkdir(imgDir, { recursive: true });
+
+  // Handle image errors
+  const providedImage = formData.get("image");
+  if (!(providedImage instanceof File) || providedImage.size <= 0) {
+    throw new Error("Image manquante");
+  }
+  const mime = providedImage.type;
+  const ext =
+    MIME_TO_EXT[mime] ||
+    path.extname(providedImage.name).replace(".", "").toLowerCase();
+  if (!ext) {
+    throw new Error(`Type d'image non pris en charge: ${mime || "inconnu"}`);
+  }
+  if (providedImage.size > 8 * 1024 * 1024) {
+    throw new Error("Image trop lourde (max 8 Mo).");
   }
 
-  // MAJ index.json
-  let index: PostPayload[] = [];
+  // Image saving
+  const fileName = `${slug}.${ext}`;
+  const fileBuffer = Buffer.from(await providedImage.arrayBuffer());
+  const diskPath = path.join(imgDir, fileName);
+  await fs.writeFile(diskPath, fileBuffer);
+
+  // HTML saving
+  const htmlPath = path.join(articlesDir, `html/${slug}.html`);
+  await fs.writeFile(htmlPath, htmlInput, "utf-8");
+
+  // Index update
+  //// Extract existing entries
+  let index: PostIndexEntry[] = [];
+  try {
+    index = JSON.parse(
+      await fs.readFile(indexFile, "utf-8")
+    ) as PostIndexEntry[];
+  } catch {
+    index = [];
+  }
+
+  //// Replace/add ours
+  const rest = index.filter((p) => p.slug !== slug);
+  rest.push({
+    slug,
+    title,
+    author,
+    date: dateIso,
+    imgPath: `images/${fileName}`,
+    imgAlt: imageAlt,
+  });
+
+  //// Update index.json
+  await fs.writeFile(indexFile, JSON.stringify(rest, null, 2), "utf-8");
+
+  // Revalidation ISR
+  revalidatePath("/");
+  revalidatePath("/articles");
+  revalidatePath(`/articles/${slug}`);
+}
+
+async function safeUnlink(p: string) {
+  try {
+    await fs.unlink(p);
+  } catch {
+    // fichier déjà absent : ignorer
+  }
+}
+
+export async function deleteArticle(formData: FormData) {
+  const slug = sanitizeSlug(String(formData.get("slug") ?? ""));
+  if (!slug) return;
+
+  // 1) Charger l'index
+  let index: Array<{ slug: string; imgPath: string }> = [];
   try {
     index = JSON.parse(await fs.readFile(indexFile, "utf-8"));
   } catch {
     index = [];
   }
 
+  // 2) Trouver l'article à supprimer (pour récupérer son image)
+  const toDelete = index.find((p) => p.slug === slug);
+  if (!toDelete) return;
+
+  // 3) Supprimer le fichier HTML
+  const htmlPath = path.join(articlesDir, `html/${slug}.html`);
+  await safeUnlink(htmlPath);
+  const imgPath = path.join(imgDir, path.basename(toDelete.imgPath));
+  await safeUnlink(imgPath);
+
+  // 4) Mettre à jour l'index.json (on retire l'entrée)
   const updated = index.filter((p) => p.slug !== slug);
   await fs.writeFile(indexFile, JSON.stringify(updated, null, 2), "utf-8");
 
+  // 6) Revalidation ISR
   revalidatePath("/");
   revalidatePath("/articles");
   revalidatePath(`/articles/${slug}`);
