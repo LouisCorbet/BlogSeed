@@ -3,26 +3,12 @@ import fs from "fs/promises";
 import path from "path";
 import Link from "next/link";
 
-async function getArticles() {
-  const articlesDir = path.join(process.cwd(), "articles");
-  const indexFile = path.join(articlesDir, "index.json");
-
-  try {
-    const raw = await fs.readFile(indexFile, "utf-8");
-    return JSON.parse(raw) as {
-      slug: string;
-      title: string;
-      author: string;
-      date: string;
-    }[];
-  } catch {
-    return [];
-  }
-}
-
+import { readIndex } from "@/lib/store";
+import DeleteArticleButton from "../components/DeleteArticleButton";
 export default async function AdminPage() {
-  const articles = await getArticles();
+  const articles = await readIndex();
   const count = articles.length;
+  const sorted = [...articles].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <main className="min-h-screen bg-base-200">
@@ -219,16 +205,7 @@ export default async function AdminPage() {
                                   name="slug"
                                   value={a.slug}
                                 />
-                                <button
-                                  type="submit"
-                                  className="btn btn-xs btn-error"
-                                  onClick={(e) => {
-                                    if (!confirm(`Supprimer "${a.title}" ?`))
-                                      e.preventDefault();
-                                  }}
-                                >
-                                  Supprimer
-                                </button>
+                                <DeleteArticleButton title={a.title} />
                               </form>
                             </div>
                           </td>
