@@ -12,7 +12,7 @@ interface PostPayload {
   date?: string;
 }
 
-const articlesDir = path.join(process.cwd(), "articles");
+const articlesDir = path.join(process.cwd(), "data/articles");
 const indexFile = path.join(articlesDir, "index.json");
 
 /**
@@ -29,6 +29,7 @@ export async function saveArticle(formData: FormData) {
     date: String(formData.get("date") ?? new Date().toISOString()),
   };
 
+  console.log(articlesDir);
   await fs.mkdir(articlesDir, { recursive: true });
 
   // Sauvegarde HTML

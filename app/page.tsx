@@ -29,6 +29,10 @@ export default async function Home() {
         <Link href="/articles" className="text-blue-600 underline">
           Voir tous les articles →
         </Link>
+        <hr></hr>
+        <Link href="/admin" className="text-blue-600 underline">
+          Administration
+        </Link>
       </div>
     </main>
   );

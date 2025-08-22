@@ -1,5 +1,6 @@
 import { saveArticle, deleteArticle } from "./actions";
 import fs from "fs/promises";
+import Link from "next/link";
 import path from "path";
 
 async function getArticles() {
@@ -24,6 +25,9 @@ export default async function AdminPage() {
 
   return (
     <div style={{ padding: "2rem" }}>
+      <Link href="/" className="text-blue-600 underline">
+        Retour à l&apos;accueil
+      </Link>
       <h1>Administration</h1>
 
       {/* --- Formulaire d’ajout --- */}

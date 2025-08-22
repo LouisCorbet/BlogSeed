@@ -1,9 +1,9 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-const ROOT = path.join(process.cwd(), "data");
-const INDEX = path.join(ROOT, "index.json");
-const DIR = path.join(ROOT, "articles");
+const DATA_PATH = path.join(process.cwd(), "data");
+const ARTICLES_PATH = path.join(DATA_PATH, "articles");
+const ARTICLES_INDEX_PATH = path.join(ARTICLES_PATH, "index.json");
 
 export type Article = {
   slug: string;
@@ -15,7 +15,7 @@ export type Article = {
 
 export async function readIndex(): Promise<Article[]> {
   try {
-    const raw = await fs.readFile(INDEX, "utf8");
+    const raw = await fs.readFile(ARTICLES_INDEX_PATH, "utf8");
     return JSON.parse(raw);
   } catch {
     return [];
@@ -23,13 +23,17 @@ export async function readIndex(): Promise<Article[]> {
 }
 
 export async function writeIndex(items: Article[]) {
-  await fs.mkdir(ROOT, { recursive: true });
-  await fs.writeFile(INDEX, JSON.stringify(items, null, 2), "utf8");
+  await fs.mkdir(DATA_PATH, { recursive: true });
+  await fs.writeFile(
+    ARTICLES_INDEX_PATH,
+    JSON.stringify(items, null, 2),
+    "utf8"
+  );
 }
 
 export async function getHTML(slug: string) {
   try {
-    return await fs.readFile(path.join(DIR, `${slug}.html`), "utf8");
+    return await fs.readFile(path.join(ARTICLES_PATH, `${slug}.html`), "utf8");
   } catch {
     return null;
   }
@@ -48,8 +52,12 @@ export async function upsert({
   htmlContent: string;
   date?: string;
 }) {
-  await fs.mkdir(DIR, { recursive: true });
-  await fs.writeFile(path.join(DIR, `${slug}.html`), htmlContent, "utf8");
+  await fs.mkdir(ARTICLES_PATH, { recursive: true });
+  await fs.writeFile(
+    path.join(ARTICLES_PATH, `${slug}.html`),
+    htmlContent,
+    "utf8"
+  );
 
   const items = await readIndex();
   const idx = items.findIndex((a) => a.slug === slug);
@@ -68,7 +76,7 @@ export async function upsert({
 
 export async function remove(slug: string) {
   try {
-    await fs.rm(path.join(DIR, `${slug}.html`));
+    await fs.rm(path.join(ARTICLES_PATH, `${slug}.html`));
   } catch {}
   const items = await readIndex();
   await writeIndex(items.filter((a) => a.slug !== slug));
