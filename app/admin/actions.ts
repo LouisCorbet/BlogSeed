@@ -11,6 +11,7 @@ interface PostIndexEntry {
   date: string;
   imgPath: string; // chemin public de l'image (ex: /uploads/slug-123456.webp)
   imgAlt: string; // texte alternatif de l'image
+  catchphrase?: string; // phrase d'accroche
 }
 
 const articlesDir = path.join(process.cwd(), "data/articles");
@@ -64,6 +65,7 @@ export async function saveArticle(formData: FormData) {
       ? new Date(dateInput).toISOString()
       : new Date().toISOString();
   const imageAlt = String(formData.get("imageAlt") ?? "").trim();
+  const catchphrase = String(formData.get("catchphrase") ?? "").trim();
 
   // Make sure folders exist
   // await fs.mkdir(articlesDir, { recursive: true });
@@ -116,6 +118,7 @@ export async function saveArticle(formData: FormData) {
     date: dateIso,
     imgPath: `images/${fileName}`,
     imgAlt: imageAlt,
+    catchphrase,
   });
 
   //// Update index.json
