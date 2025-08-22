@@ -26,9 +26,9 @@ export async function saveArticle(formData: FormData) {
     title: String(formData.get("title") ?? "").trim(),
     author: String(formData.get("author") ?? "").trim(),
     htmlContent: String(formData.get("htmlContent") ?? ""),
-    date: String(formData.get("date") ?? new Date().toISOString()),
+    date: String(formData.get("date") || new Date().toISOString()),
   };
-
+  console.log(payload);
   console.log(articlesDir);
   await fs.mkdir(articlesDir, { recursive: true });
 
