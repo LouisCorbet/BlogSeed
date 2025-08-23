@@ -16,7 +16,7 @@ export default function ArticleCard({ article }: { article: Article }) {
   return (
     <Link
       href={`/articles/${article.slug}`}
-      className="card bg-base-100 shadow-sm transition-transform duration-200 hover:scale-105 cursor-pointer hover:shadow-md"
+      className="h-full card bg-base-100 shadow-sm transition-transform duration-200 hover:scale-105 cursor-pointer hover:shadow-md"
     >
       {article.imgPath && (
         <figure className="relative w-full h-40">
@@ -34,10 +34,12 @@ export default function ArticleCard({ article }: { article: Article }) {
           {new Date(article.date).toLocaleDateString("fr-FR")} ·{" "}
           {article.author}
         </p>
-        {article.catchphrase && (
+        {article.catchphrase ? (
           <p className="mt-2 text-sm text-base-content/70 line-clamp-3">
             {article.catchphrase}
           </p>
+        ) : (
+          <span className="grow" />
         )}
       </div>
     </Link>

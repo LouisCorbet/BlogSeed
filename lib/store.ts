@@ -43,7 +43,7 @@ export async function getHTML(slug: string) {
       "utf8"
     );
   } catch (err) {
-    console.error("Erreur lors de la lecture du fichier HTML :", err);
+    // console.error("Erreur lors de la lecture du fichier HTML :", err);
     return null;
   }
 }

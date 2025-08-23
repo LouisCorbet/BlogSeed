@@ -50,7 +50,13 @@ export default function ArticleSearch({ items }: { items: Article[] }) {
 
   return (
     <section className="max-w-5xl mx-auto px-4 md:px-6 py-10">
-      <div className="flex items-center justify-end mb-6 gap-4">
+      <div className="flex items-center justify-between mb-6 gap-4">
+        <div className="text-base-content/60">
+          {rawQuery ? filtered.length : items.length} article
+          {(rawQuery ? filtered.length : items.length) > 1 ? "s" : ""}{" "}
+          {rawQuery ? `trouvé${filtered.length > 1 ? "s" : ""}` : ""}
+        </div>
+
         <input
           type="text"
           placeholder="Chercher un article"
@@ -111,17 +117,6 @@ export default function ArticleSearch({ items }: { items: Article[] }) {
           </div>
         </>
       )}
-
-      <div className="mt-10 flex items-center justify-between border-t border-base-300 pt-6">
-        <div className="text-base-content/60">
-          {rawQuery ? filtered.length : items.length} article
-          {(rawQuery ? filtered.length : items.length) > 1 ? "s" : ""}{" "}
-          {rawQuery ? `trouvé${filtered.length > 1 ? "s" : ""}` : ""}
-        </div>
-        <Link href="/articles" className="btn btn-primary btn-sm">
-          Voir tous les articles
-        </Link>
-      </div>
     </section>
   );
 }
