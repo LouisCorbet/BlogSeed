@@ -2,16 +2,9 @@
 
 import Link from "next/link";
 import ArticleCard from "./ArticleCard";
+import { Article } from "@/lib/store";
 
-export type SuggestItem = {
-  slug: string;
-  title: string;
-  author: string;
-  date: string;
-  imgPath?: string;
-};
-
-export default function SuggestCarousel({ items }: { items: SuggestItem[] }) {
+export default function SuggestCarousel({ items }: { items: Article[] }) {
   return (
     <div className="overflow-x-auto pb-2 [scrollbar-gutter:stable]">
       <ul

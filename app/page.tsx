@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { readIndex } from "@/lib/store";
 import ArticleSearch from "./components/ArticlesSearch";
+import type { Article } from "@/lib/store";
 import Image from "next/image";
 
 export default async function Home() {

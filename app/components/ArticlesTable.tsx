@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import DeleteArticleButton from "./DeleteArticleButton"; // adapte si ton import est ailleurs
+import DeleteArticleButton from "./DeleteArticleButton";
 import { deleteArticle } from "../admin/actions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,7 +13,6 @@ export default function ArticlesTable({ articles }: { articles: any[] }) {
 
   const sorted = [...articles].sort((a, b) => b.date.localeCompare(a.date));
   const totalPages = Math.ceil(sorted.length / perPage);
-
   const paginated = sorted.slice((page - 1) * perPage, page * perPage);
 
   return (
@@ -68,8 +67,10 @@ export default function ArticlesTable({ articles }: { articles: any[] }) {
                           /{a.slug}
                         </div>
                       </td>
+
                       <td>{a.author}</td>
                       <td>{new Date(a.date).toLocaleDateString()}</td>
+
                       <td>
                         <div className="flex justify-end gap-2">
                           <Link
@@ -78,6 +79,19 @@ export default function ArticlesTable({ articles }: { articles: any[] }) {
                           >
                             Voir
                           </Link>
+
+                          {/* ← NOUVEAU : bouton Modifier qui ouvre le formulaire pré-rempli */}
+                          <Link
+                            href={`/admin?edit=${encodeURIComponent(
+                              a.slug
+                            )}#article-form`}
+                            className="btn btn-xs"
+                            prefetch={false}
+                            title="Modifier cet article"
+                          >
+                            Modifier
+                          </Link>
+
                           <form action={deleteArticle}>
                             <input type="hidden" name="slug" value={a.slug} />
                             <DeleteArticleButton title={a.title} />

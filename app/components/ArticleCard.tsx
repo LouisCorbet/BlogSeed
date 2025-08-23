@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-
-type Article = {
-  slug: string;
-  title: string;
-  author: string;
-  date: string;
-  imgPath?: string;
-  catchphrase?: string;
-};
+import { Article } from "@/lib/store";
 
 export default function ArticleCard({ article }: { article: Article }) {
   return (

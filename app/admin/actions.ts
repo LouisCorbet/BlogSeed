@@ -3,14 +3,16 @@
 import { revalidatePath } from "next/cache";
 import fs from "fs/promises";
 import path from "path";
+import { v4 as uuidv4, v4 } from "uuid";
 
 interface PostIndexEntry {
+  id: string;
   slug: string;
   title: string;
   author: string;
   date: string;
   imgPath: string; // chemin public de l'image (ex: /uploads/slug-123456.webp)
-  imgAlt: string; // texte alternatif de l'image
+  imageAlt: string; // texte alternatif de l'image
   catchphrase?: string; // phrase d'accroche
 }
 
@@ -53,9 +55,23 @@ function escapeHtml(s: string) {
  */
 export async function saveArticle(formData: FormData) {
   // Fields normalization
-  const slug = `${sanitizeSlug(
-    String(formData.get("slug") ?? "")
-  )}-${Date.now()}`;
+
+  const providedId = String(formData.get("id") ?? "");
+  let oldArticle: PostIndexEntry | undefined;
+  if (providedId) {
+    try {
+      const index = JSON.parse(
+        await fs.readFile(indexFile, "utf-8")
+      ) as PostIndexEntry[];
+      oldArticle = index.find((p) => p.id === providedId);
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  const slug = providedId
+    ? String(formData.get("slug") ?? "")
+    : `${sanitizeSlug(String(formData.get("slug") ?? ""))}-${Date.now()}`;
   const title = String(formData.get("title") ?? "").trim();
   const author = String(formData.get("author") ?? "").trim();
   const htmlInput = String(formData.get("htmlContent") ?? "");
@@ -66,6 +82,7 @@ export async function saveArticle(formData: FormData) {
       : new Date().toISOString();
   const imageAlt = String(formData.get("imageAlt") ?? "").trim();
   const catchphrase = String(formData.get("catchphrase") ?? "").trim();
+  const articleId = providedId || v4();
 
   // Make sure folders exist
   // await fs.mkdir(articlesDir, { recursive: true });
@@ -74,25 +91,39 @@ export async function saveArticle(formData: FormData) {
 
   // Handle image errors
   const providedImage = formData.get("image");
-  if (!(providedImage instanceof File) || providedImage.size <= 0) {
+  let fileName = "";
+  if (providedImage instanceof File && providedImage.size > 0) {
+    const mime = providedImage.type;
+    const ext =
+      MIME_TO_EXT[mime] ||
+      path.extname(providedImage.name).replace(".", "").toLowerCase();
+    if (!ext) {
+      throw new Error(`Type d'image non pris en charge: ${mime || "inconnu"}`);
+    }
+    if (providedImage.size > 8 * 1024 * 1024) {
+      throw new Error("Image trop lourde (max 8 Mo).");
+    }
+
+    // if slug changed, delete old image
+    if (slug !== oldArticle?.slug) {
+      const oldFileName = `${oldArticle?.slug}.${ext}`;
+      await safeUnlink(path.join(imgDir, oldFileName));
+    }
+
+    // Image saving
+    fileName = `${slug}.${ext}`;
+    const fileBuffer = Buffer.from(await providedImage.arrayBuffer());
+    const diskPath = path.join(imgDir, fileName);
+    await fs.writeFile(diskPath, fileBuffer);
+  } else if (!providedId) {
     throw new Error("Image manquante");
   }
-  const mime = providedImage.type;
-  const ext =
-    MIME_TO_EXT[mime] ||
-    path.extname(providedImage.name).replace(".", "").toLowerCase();
-  if (!ext) {
-    throw new Error(`Type d'image non pris en charge: ${mime || "inconnu"}`);
-  }
-  if (providedImage.size > 8 * 1024 * 1024) {
-    throw new Error("Image trop lourde (max 8 Mo).");
-  }
 
-  // Image saving
-  const fileName = `${slug}.${ext}`;
-  const fileBuffer = Buffer.from(await providedImage.arrayBuffer());
-  const diskPath = path.join(imgDir, fileName);
-  await fs.writeFile(diskPath, fileBuffer);
+  // if slug changed, delete old HTML
+  if (slug !== oldArticle?.slug) {
+    const oldHtmlPath = path.join(articlesDir, `html/${oldArticle?.slug}.html`);
+    await safeUnlink(oldHtmlPath);
+  }
 
   // HTML saving
   const htmlPath = path.join(articlesDir, `html/${slug}.html`);
@@ -109,15 +140,18 @@ export async function saveArticle(formData: FormData) {
     index = [];
   }
 
+  console.log();
+
   //// Replace/add ours
-  const rest = index.filter((p) => p.slug !== slug);
+  const rest = index.filter((p) => p.id !== articleId);
   rest.push({
+    id: v4(),
     slug,
     title,
     author,
     date: dateIso,
-    imgPath: `images/${fileName}`,
-    imgAlt: imageAlt,
+    imgPath: fileName !== "" ? `images/${fileName}` : oldArticle?.imgPath || "",
+    imageAlt: imageAlt,
     catchphrase,
   });
 

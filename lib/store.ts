@@ -10,12 +10,15 @@ const ARTICLES_HTML_PATH = path.join(ARTICLES_PATH, "html");
 const ARTICLES_INDEX_PATH = path.join(ARTICLES_PATH, "index.json");
 
 export type Article = {
+  id: string;
   slug: string;
   title: string;
   author: string;
   date: string; // ISO string
   path: string; // "articles/<slug>.html"
   imgPath: string; // "articles/<slug>.jpg"
+
+  catchphrase?: string;
 };
 
 export async function readIndex(): Promise<Article[]> {
@@ -48,41 +51,41 @@ export async function getHTML(slug: string) {
   }
 }
 
-export async function upsert({
-  slug,
-  title,
-  author,
-  htmlContent,
-  date,
-}: {
-  slug: string;
-  title: string;
-  author: string;
-  htmlContent: string;
-  date?: string;
-}) {
-  await fs.mkdir(ARTICLES_HTML_PATH, { recursive: true });
-  await fs.writeFile(
-    path.join(ARTICLES_HTML_PATH, `${slug}.html`),
-    htmlContent,
-    "utf8"
-  );
+// export async function upsert({
+//   slug,
+//   title,
+//   author,
+//   htmlContent,
+//   date,
+// }: {
+//   slug: string;
+//   title: string;
+//   author: string;
+//   htmlContent: string;
+//   date?: string;
+// }) {
+//   await fs.mkdir(ARTICLES_HTML_PATH, { recursive: true });
+//   await fs.writeFile(
+//     path.join(ARTICLES_HTML_PATH, `${slug}.html`),
+//     htmlContent,
+//     "utf8"
+//   );
 
-  const items = await readIndex();
-  const idx = items.findIndex((a) => a.slug === slug);
-  const item: Article = {
-    slug,
-    title,
-    author,
-    date: date || new Date().toISOString(),
-    path: `articles/${slug}.html`,
-    imgPath: `images/${slug}.jpg`,
-  };
-  if (idx === -1) items.push(item);
-  else items[idx] = item;
-  await writeIndex(items);
-  return item;
-}
+//   const items = await readIndex();
+//   const idx = items.findIndex((a) => a.slug === slug);
+//   const item: Article = {
+//     slug,
+//     title,
+//     author,
+//     date: date || new Date().toISOString(),
+//     path: `articles/${slug}.html`,
+//     imgPath: `images/${slug}.jpg`,
+//   };
+//   if (idx === -1) items.push(item);
+//   else items[idx] = item;
+//   await writeIndex(items);
+//   return item;
+// }
 
 export async function remove(slug: string) {
   try {

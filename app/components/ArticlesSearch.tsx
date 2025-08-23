@@ -3,14 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ArticleCard from "./ArticleCard";
-
-type Article = {
-  slug: string;
-  title: string;
-  author: string;
-  date: string;
-  imgPath?: string;
-};
+import { Article } from "@/lib/store";
 
 export default function ArticleSearch({ items }: { items: Article[] }) {
   const [rawQuery, setRawQuery] = useState("");

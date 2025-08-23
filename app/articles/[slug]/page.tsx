@@ -1,8 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { readIndex, getHTML } from "@/lib/store";
-import SuggestCarousel, { SuggestItem } from "@/app/components/SuggestCarousel";
+import { readIndex, getHTML, Article } from "@/lib/store";
+import SuggestCarousel from "@/app/components/SuggestCarousel";
 
 function formatDateISOFrUTC(iso: string) {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -31,14 +31,12 @@ export default async function ArticlePage(props: {
   const list = await readIndex();
   const meta = list.find((a) => a.slug === slug);
   const html = await getHTML(slug);
+  console.log(slug);
   if (!meta || !html) return notFound();
 
   // “Voir aussi” : 6 articles aléatoires, hors article courant
   const others = list.filter((a) => a.slug !== slug);
-  const suggestions: SuggestItem[] = pickRandom(
-    others,
-    Math.min(6, others.length)
-  );
+  const suggestions: Article[] = pickRandom(others, Math.min(6, others.length));
 
   return (
     <main className="bg-base-200">
