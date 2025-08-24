@@ -17,7 +17,7 @@ export type Article = {
   date: string; // ISO string
   path: string; // "articles/<slug>.html"
   imgPath: string; // "articles/<slug>.jpg"
-
+  imageAlt: string; // texte alternatif de l'image
   catchphrase?: string;
 };
 

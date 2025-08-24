@@ -31,7 +31,6 @@ export default async function ArticlePage(props: {
   const list = await readIndex();
   const meta = list.find((a) => a.slug === slug);
   const html = await getHTML(slug);
-  console.log(slug);
   if (!meta || !html) return notFound();
 
   // “Voir aussi” : 6 articles aléatoires, hors article courant
@@ -48,7 +47,7 @@ export default async function ArticlePage(props: {
             {meta.imgPath && (
               <Image
                 src={`/${meta.imgPath}`}
-                alt={meta.title}
+                alt={meta.imageAlt}
                 width={300}
                 height={300}
                 className="w-[90vw] md:w-[300px] h-auto object-contain rounded-xl"

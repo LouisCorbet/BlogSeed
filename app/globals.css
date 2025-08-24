@@ -1,7 +1,9 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @plugin "daisyui" {
   themes: caramellatte --default, light;
 }
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
