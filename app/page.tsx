@@ -3,56 +3,66 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { readIndex } from "@/lib/store";
+import { readSiteSettings } from "@/lib/siteSettings";
 import ArticleSearch from "./components/ArticlesSearch";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com";
-const OG_IMAGE = new URL("/og-default.jpg", SITE_URL).toString(); // mets ton image OG
+// --- Metadatas dynamiques depuis siteSettings ---
+export async function generateMetadata(): Promise<Metadata> {
+  const s = await readSiteSettings();
+  const siteUrl = s.url.replace(/\/+$/, "");
+  const abs = (p: string) => new URL(p, siteUrl).toString();
 
-export const metadata: Metadata = {
-  title: {
-    default: "Mon Blog",
-    template: "%s — Mon Blog",
-  },
-  description:
-    "Derniers articles, guides et inspirations. Léger, rapide et SEO-friendly : tutoriels, bonnes pratiques et ressources.",
-  alternates: {
-    canonical: SITE_URL,
-  },
-  openGraph: {
-    type: "website",
-    url: SITE_URL,
-    siteName: "Mon Blog",
-    title: "Mon Blog",
-    description:
-      "Guides, articles et inspirations. Performance, accessibilité et SEO à l’honneur.",
-    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: "Mon Blog" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Mon Blog",
-    description:
-      "Guides, articles et inspirations. Performance, accessibilité et SEO.",
-    images: [OG_IMAGE],
-    // site: "@toncompte", // ajoute si tu as un Twitter/X
-  },
-  robots: {
-    index: true,
-    follow: true,
-    "max-image-preview": "large",
-    "max-snippet": -1,
-    "max-video-preview": -1,
-  },
-};
+  return {
+    title: {
+      default: s.name,
+      template: s.titleTemplate,
+    },
+    description: s.tagline,
+    alternates: {
+      canonical: siteUrl,
+    },
+    openGraph: {
+      type: "website",
+      url: siteUrl,
+      siteName: s.name,
+      title: s.name,
+      description: s.tagline,
+      images: [
+        {
+          url: abs(s.defaultOg),
+          width: 1200,
+          height: 630,
+          alt: s.name,
+        },
+      ],
+    },
+    // twitter: {
+    //   card: "summary_large_image",
+    //   title: s.name,
+    //   description: s.tagline,
+    //   images: [abs(s.defaultOg)],
+    //   site: s.twitter, // ex: "@monsite"
+    // },
+    robots: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  };
+}
 
-function HomeJsonLd() {
+// JSON-LD WebSite (dépend aussi des settings)
+function HomeJsonLd({ name, url }: { name: string; url: string }) {
   const json = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Mon Blog",
-    url: SITE_URL,
+    name,
+    url,
     potentialAction: {
       "@type": "SearchAction",
-      target: `${SITE_URL}/?q={search_term_string}`,
+      target: `${url.replace(/\/+$/, "")}/?q={search_term_string}`,
       "query-input": "required name=search_term_string",
     },
   };
@@ -65,29 +75,38 @@ function HomeJsonLd() {
 }
 
 export default async function Home() {
-  const all = await readIndex();
+  const [all, s] = await Promise.all([readIndex(), readSiteSettings()]);
 
   return (
     <main className="min-h-screen bg-base-200">
       {/* JSON-LD pour la page d’accueil */}
-      <HomeJsonLd />
+      <HomeJsonLd name={s.name} url={s.url} />
 
       {/* Hero */}
       <section className="bg-base-100 hero border-b border-base-300">
         <div className="hero-content max-w-5xl w-full flex-col lg:flex-row gap-10 py-10">
           <div className="flex-1">
             <h1 className="text-4xl lg:text-5xl font-bold tracking-tight">
-              Mon <span className="text-primary">Blog</span>
+              {s.name.split(" ")[0]}
+              <span className="text-primary">
+                {s.name.split(" ").slice(1).join(" ")}
+              </span>
             </h1>
-            <p className="py-4 text-base-content/70">
-              Derniers articles, guides et inspirations. Tout est servi léger,
-              rapide, et SEO-friendly.
-            </p>
+            <p className="py-4 text-base-content/70">{s.tagline}</p>
             <Link href="/articles" className="link link-primary">
               Parcourir les articles →
             </Link>
           </div>
-          <Image src="/favicon.ico" alt="Hero Image" width={200} height={200} />
+
+          {/* Visuel : on réutilise l’OG par défaut comme vignette (fallback favicon) */}
+          <Image
+            src={s.homeLogo || "/favicon.ico"}
+            alt={`${s.name} — visuel`}
+            width={200}
+            height={200}
+            className="rounded-xl border border-base-300 object-cover"
+            priority
+          />
         </div>
       </section>
 

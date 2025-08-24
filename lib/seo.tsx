@@ -1,6 +1,6 @@
 // lib/seo.ts
 import type { Metadata } from "next";
-import { site } from "./site";
+import { readSiteSettings } from "./siteSettings";
 
 // Types côté contenu (adapte-les à ton store)
 export type ArticleMeta = {
@@ -14,6 +14,8 @@ export type ArticleMeta = {
   draft?: boolean; // pour noindex
   html?: string; // contenu complet si tu l'as déjà
 };
+
+const site = await readSiteSettings();
 
 const abs = (path: string | undefined) =>
   path ? new URL(path, site.url).toString() : undefined;
@@ -72,13 +74,13 @@ export function buildArticleMetadata(a: ArticleMeta): Metadata {
     },
 
     // Twitter Card
-    twitter: {
-      card: "summary_large_image",
-      title: a.title,
-      description,
-      site: site.twitter,
-      images: ogImage ? [ogImage] : undefined,
-    },
+    // twitter: {
+    //   card: "summary_large_image",
+    //   title: a.title,
+    //   description,
+    //   site: site.twitter,
+    //   images: ogImage ? [ogImage] : undefined,
+    // },
 
     // Robots (noindex si brouillon)
     robots: a.draft

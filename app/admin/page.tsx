@@ -1,6 +1,8 @@
 import { readIndex, getHTML, Article } from "@/lib/store";
 import ArticlesTable from "../components/ArticlesTable";
 import ArticleForm from "../components/ArticleForm";
+import SiteSettingsForm from "../components/SiteSettingsForm";
+import { readSiteSettings } from "@/lib/siteSettings";
 
 type AdminSearchParams = {
   edit?: string | string[] | undefined;
@@ -13,8 +15,10 @@ export default async function AdminPage({
 }) {
   const { edit } = await searchParams; // ✅ attendre searchParams
   const editSlug = Array.isArray(edit) ? edit[0] : edit;
-
-  const articles = await readIndex();
+  const [articles, settings] = await Promise.all([
+    readIndex(),
+    readSiteSettings(),
+  ]);
 
   const editing = editSlug
     ? articles.find((a: Article) => a.slug === editSlug)
@@ -28,7 +32,12 @@ export default async function AdminPage({
         <ArticleForm
           article={editing ? { ...editing, html: html ?? "" } : undefined}
         />
+      </section>
+      <section>
         <ArticlesTable articles={articles} />
+      </section>
+      <section>
+        <SiteSettingsForm settings={settings} />
       </section>
     </main>
   );
