@@ -2,6 +2,44 @@
 import { promises as fs } from "fs";
 import path from "path";
 
+export const DaisyThemes = [
+  "light",
+  "dark",
+  "cupcake",
+  "bumblebee",
+  "emerald",
+  "corporate",
+  "synthwave",
+  "retro",
+  "cyberpunk",
+  "valentine",
+  "halloween",
+  "garden",
+  "forest",
+  "aqua",
+  "lofi",
+  "pastel",
+  "fantasy",
+  "wireframe",
+  "black",
+  "luxury",
+  "dracula",
+  "cmyk",
+  "autumn",
+  "business",
+  "acid",
+  "lemonade",
+  "night",
+  "coffee",
+  "winter",
+  "dim",
+  "nord",
+  "sunset",
+  "caramellatte",
+  "abyss",
+  "silk",
+] as const;
+export type DaisyTheme = (typeof DaisyThemes)[number];
 export type SiteSettings = {
   name: string;
   url: string; // absolu (https://…)
@@ -16,6 +54,7 @@ export type SiteSettings = {
   favicon?: string; // relatif (ex: /favicon.ico)
   about?: string; // description plus longue, optionnelle
   subTitle?: string; // sous-titre, optionnel
+  theme: DaisyTheme; // thème, optionnel
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -27,6 +66,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   url: process.env.SITE_URL || "", // domaine absolu (sans slash final)
   localeDefault: process.env.SITE_LOCALE_DEFAULT || "fr_FR",
   titleTemplate: `%s — ${process.env.SITE_NAME}`,
+  theme: DaisyThemes[0],
 };
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -50,7 +90,6 @@ export async function writeSiteSettings(next: SiteSettings): Promise<void> {
   // validation très légère (garde simple)
   if (!next.name?.trim()) throw new Error("Le nom du site est requis.");
   if (!next.url?.startsWith("http")) throw new Error("URL du site invalide.");
-  console.log(next.defaultOg);
   if (!next.defaultOg?.startsWith("/"))
     throw new Error("defaultOg doit commencer par /");
 

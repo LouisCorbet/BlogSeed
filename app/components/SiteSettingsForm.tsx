@@ -1,7 +1,7 @@
 // app/components/SiteSettingsForm.tsx
 import Image from "next/image";
 import { saveSiteSettings } from "@/app/admin/actions";
-import type { SiteSettings } from "@/lib/siteSettings";
+import { DaisyThemes, type SiteSettings } from "@/lib/siteSettings";
 
 export default function SiteSettingsForm({
   settings,
@@ -18,6 +18,25 @@ export default function SiteSettingsForm({
         </p>
 
         <form action={saveSiteSettings} className="grid gap-3">
+          <label className="form-control">
+            <span className="label">
+              <span className="label-text">Thème DaisyUI</span>
+              <span className="label-text-alt text-base-content/60">
+                Appliqué sur &lt;html data-theme=&quot;…&quot; /&gt;
+              </span>
+            </span>
+            <select
+              name="theme"
+              className="select select-bordered"
+              defaultValue={settings.theme ?? "light"}
+            >
+              {DaisyThemes.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="form-control">
             <span className="label">
               <span className="label-text">Tagline (description courte)</span>

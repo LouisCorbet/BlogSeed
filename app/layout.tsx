@@ -62,13 +62,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const s = await readSiteSettings();
+  const theme = s.theme ?? "light";
   return (
-    <html lang="fr">
+    <html lang="fr" data-theme={theme}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
       >

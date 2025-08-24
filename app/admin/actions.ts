@@ -6,6 +6,7 @@ import path from "path";
 import { v4 as uuidv4, v4 } from "uuid";
 
 import {
+  DaisyThemes,
   readSiteSettings,
   writeSiteSettings,
   type SiteSettings,
@@ -263,6 +264,10 @@ export async function saveSiteSettings(formData: FormData) {
   const tagline = String(formData.get("tagline") ?? "").trim();
   const subTitle = String(formData.get("subTitle") ?? "").trim();
   const about = String(formData.get("about") ?? "").trim();
+  const themeRaw = String(formData.get("theme") ?? "").trim();
+  const theme = (DaisyThemes as readonly string[]).includes(themeRaw)
+    ? (themeRaw as SiteSettings["theme"])
+    : undefined;
   // const twitter = String(formData.get("twitter") ?? "").trim() || undefined;
   const contactEmail =
     String(formData.get("contactEmail") ?? "").trim() || undefined;
@@ -353,6 +358,7 @@ export async function saveSiteSettings(formData: FormData) {
     favicon: newFavicon || current.favicon,
     subTitle,
     about,
+    theme: theme || current.theme,
   });
 
   // Revalidation : home + layout (au besoin)/ pages d'articles (metas)
