@@ -174,7 +174,7 @@ source .env
 set +o allexport
 
 : "${DOMAIN:?DOMAIN must be set in .env (e.g., blog.example.com)}"
-: "${LE_EMAIL:?LE_EMAIL must be set in .env (Let's Encrypt contact email)}"
+: "${LE_EMAIL:?LE_EMAIL must be set in .env (Let s Encrypt contact email)}"
 : "${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL must be set in .env (https://$DOMAIN)}"
 : "${ADMIN_USER:?ADMIN_USER must be set in .env}"
 : "${ADMIN_PASS:?ADMIN_PASS must be set in .env}"
