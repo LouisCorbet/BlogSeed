@@ -41,8 +41,8 @@ install_pkgs() {
   case "$PM" in
     apt)
       $SUDO apt-get update -y
-      $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
-      ;;
+      $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"  
+        ;;
     dnf)
       $SUDO dnf install -y "$@"
       ;;
@@ -74,7 +74,8 @@ install_docker() {
       CODENAME="$(. /etc/os-release; echo "${VERSION_CODENAME:-$(lsb_release -cs 2>/dev/null || echo stable)}")"
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${OS_ID} ${CODENAME} stable" | $SUDO tee /etc/apt/sources.list.d/docker.list >/dev/null
       $SUDO apt-get update -y
-      install_pkgs docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
       $SUDO systemctl enable --now docker || true
       ;;
     dnf)
@@ -149,7 +150,7 @@ ensure_deps() {
     esac
     if docker compose version >/dev/null 2>&1; then
       export DC="docker compose"
-    elif command -v docker-compose >/devnull 2>&1; then
+    elif command -v docker-compose >/dev/null 2>&1; then
       export DC="docker-compose"
     else
       err "Failed to install Docker Compose. Install it manually then re-run."
