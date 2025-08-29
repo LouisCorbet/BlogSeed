@@ -40,4 +40,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-data/
+# Ignorer tout le contenu de data/
+data/**
+
+# …mais garder le dossier data lui-même et son placeholder
+!data/
+!data/.gitkeep
+
+# Garder le dossier data/articles/…
+!data/articles/
+
+# …tout en ignorant tout son contenu
+data/articles/**
+
+# …sauf un placeholder pour versionner le dossier vide
+!data/articles/.gitkeep
