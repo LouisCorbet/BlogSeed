@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import fs from "fs/promises";
 import path from "path";
-import { v4 as uuidv4, v4 } from "uuid";
+import { v4 } from "uuid";
 
 import {
   DaisyThemes,
@@ -45,14 +45,14 @@ function sanitizeSlug(input: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function escapeHtml(s: string) {
-  return s
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+// function escapeHtml(s: string) {
+//   return s
+//     .replaceAll("&", "&amp;")
+//     .replaceAll("<", "&lt;")
+//     .replaceAll(">", "&gt;")
+//     .replaceAll('"', "&quot;")
+//     .replaceAll("'", "&#39;");
+// }
 
 /**
  * Ajout / édition d’un article avec image (facultative)

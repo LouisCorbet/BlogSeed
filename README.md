@@ -7,7 +7,7 @@ Once modifications had been made to the projet, you want to update docker image.
 Simply run :
 
 ```bash
-docker build -t louiscorbet/blogseed:latest
+docker build . -t louiscorbet/blogseed:latest
 ```
 
 ## Test it
@@ -15,7 +15,7 @@ docker build -t louiscorbet/blogseed:latest
 Then, you can test it via Docker Desktop for example --> go in `Volumes` and you can see that the image had just been created. You can launch it with this command :
 
 ```bash
-docker run -p 3000:3000 louiscorbet/blogseed:latest
+docker run -p 3000:3000 --env-file .env louiscorbet/blogseed:latest
 ```
 
 and a new container will be created in docker Desktop, in `Containers`. You can access your new application to `localhost:3000`.

@@ -61,12 +61,15 @@ const DEFAULT_SETTINGS: SiteSettings = {
   tagline: "Guides, articles et inspirations. Léger, rapide et SEO-friendly.",
   // twitter: "",
   contactEmail: "",
-  defaultOg: "/og-default.jpg",
+  defaultOg: "/og-default.png",
   name: process.env.SITE_NAME || "",
   url: process.env.SITE_URL || "", // domaine absolu (sans slash final)
   localeDefault: process.env.SITE_LOCALE_DEFAULT || "fr_FR",
   titleTemplate: `%s — ${process.env.SITE_NAME}`,
   theme: DaisyThemes[0],
+  headerLogo: "/header-logo.png",
+  homeLogo: "/home-logo.png",
+  favicon: "/favicon.ico",
 };
 
 const DATA_DIR = path.join(process.cwd(), "data");

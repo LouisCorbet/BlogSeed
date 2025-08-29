@@ -3,7 +3,7 @@ import path from "path";
 
 const DATA_PATH = path.join(process.cwd(), "data");
 
-const IMG_PATH = path.join(DATA_PATH, "img");
+// const IMG_PATH = path.join(DATA_PATH, "img");
 
 const ARTICLES_PATH = path.join(DATA_PATH, "articles");
 const ARTICLES_HTML_PATH = path.join(ARTICLES_PATH, "html");
@@ -45,7 +45,7 @@ export async function getHTML(slug: string) {
       path.join(ARTICLES_HTML_PATH, `${slug}.html`),
       "utf8"
     );
-  } catch (err) {
+  } catch {
     // console.error("Erreur lors de la lecture du fichier HTML :", err);
     return null;
   }
