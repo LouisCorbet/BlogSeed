@@ -99,7 +99,8 @@ Now, you are ready to perform a deployment
 
 Here, we assume that the server is already configured (as in previous section) and we just want to perform a new deployment
 
-1 - Add redirection for caddy
+### 1 - Add redirection for caddy
+
 Go to `/opt/caddy/Caddyfile` and copy/paste this bloc for your new website :
 
 ```caddy
@@ -109,16 +110,31 @@ new-domain.com, www.new-domain.com { # bloc for new-website
 }
 ```
 
-2 - Create a new docker container with our image
+### 2 - Create a `.env` file for our new website
+
+Got to `/opt/secrets` and create `website_name.env`
+
+```bash
+# Site identity
+SITE_NAME=BlogSeed # displayed in header, not editable
+SITE_URL=https://new-website.com # used for SEO
+SITE_LOCALE_DEFAULT=fr_FR # used for SEO
+
+ADMIN_USER=louis # used for admin page
+ADMIN_PASS=motdepasse-robuste # used for admin page
+```
+
+### 3 - Create a new docker container with our image
+
 You may be asked to authenticate when running this command
 
 ```bash
-docker run -d --name new_website_name --network web louiscorbet/blogseed:latest
+docker run -d --name new_website_name --network web louiscorbet/blogseed:latest --env-file /opt/secrets/website_name.env
 ```
 
 This container will now be part of the network used by caddy
 
-3 - reload caddy to take changes in consideration
+### 4 - reload caddy to take changes in consideration
 
 ```bash
 docker exec caddy caddy reload --config /etc/caddy/Caddyfile
