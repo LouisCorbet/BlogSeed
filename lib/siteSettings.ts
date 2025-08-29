@@ -59,17 +59,18 @@ export type SiteSettings = {
 
 const DEFAULT_SETTINGS: SiteSettings = {
   tagline: "Guides, articles et inspirations. Léger, rapide et SEO-friendly.",
-  // twitter: "",
   contactEmail: "",
   defaultOg: "/og-default.png",
-  name: process.env.SITE_NAME || "",
-  url: process.env.SITE_URL || "", // domaine absolu (sans slash final)
+  name: process.env.SITE_NAME || "BlogSeed",
+  url: process.env.SITE_URL || "https://blogseed.com", // domaine absolu (sans slash final)
   localeDefault: process.env.SITE_LOCALE_DEFAULT || "fr_FR",
-  titleTemplate: `%s — ${process.env.SITE_NAME}`,
+  titleTemplate: `%s — ${process.env.SITE_NAME || "BlogSeed"}`,
   theme: DaisyThemes[0],
   headerLogo: "/header-logo.png",
   homeLogo: "/home-logo.png",
   favicon: "/favicon.ico",
+  about: "", // description plus longue, optionnelle
+  subTitle: "", // sous-titre, optionnel
 };
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -81,6 +82,7 @@ export async function readSiteSettings(): Promise<SiteSettings> {
     const parsed = JSON.parse(raw);
     return { ...DEFAULT_SETTINGS, ...parsed };
   } catch {
+    console.log("Erreur lors de la lecture des paramètres du site");
     // si le fichier n'existe pas encore
     return DEFAULT_SETTINGS;
   }

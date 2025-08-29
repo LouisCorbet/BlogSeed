@@ -147,8 +147,6 @@ export async function saveArticle(formData: FormData) {
     index = [];
   }
 
-  console.log();
-
   //// Replace/add ours
   const rest = index.filter((p) => p.id !== articleId);
   rest.push({
