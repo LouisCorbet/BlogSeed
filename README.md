@@ -32,7 +32,7 @@ Your image is up to date, and can be pulled from anywhere now
 
 ## The server is new : configure it
 
-1/3 - Install every docker dependency you need :
+### 1/3 - Install every docker dependency you need :
 
 ```bash
 curl -fsSL https://get.docker.com | sh
@@ -40,13 +40,14 @@ curl -fsSL https://get.docker.com | sh
 
 To simplify deployments and handle SSL, we will use a docker network, and manage it with `caddy` : a tool that will handle proxy and SSL certificates automatically.
 
-2/3 - Create a docker network for caddy
+### 2/3 - Create a docker network for caddy
 
 ```bash
 docker network create web
 ```
 
-3/3 - Create config files
+### 3/3 - Create config files
+
 Go to `/opt/caddy` and create :
 `docker-compose.yml` with this :
 
@@ -99,7 +100,7 @@ Now, you are ready to perform a deployment
 
 Here, we assume that the server is already configured (as in previous section) and we just want to perform a new deployment
 
-### 1 - Add redirection for caddy
+### 1/4 - Add redirection for caddy
 
 Go to `/opt/caddy/Caddyfile` and copy/paste this bloc for your new website :
 
@@ -110,7 +111,7 @@ new-domain.com, www.new-domain.com { # bloc for new-website
 }
 ```
 
-### 2 - Create a `.env` file for our new website
+### 2/4 - Create a `.env` file for our new website
 
 Got to `/opt/secrets` and create `website_name.env`
 
@@ -124,7 +125,7 @@ ADMIN_USER=louis # used for admin page
 ADMIN_PASS=motdepasse-robuste # used for admin page
 ```
 
-### 3 - Create a new docker container with our image
+### 3/4 - Create a new docker container with our image
 
 You may be asked to authenticate when running this command
 
@@ -134,7 +135,7 @@ docker run -d --name new_website_name --network web louiscorbet/blogseed:latest 
 
 This container will now be part of the network used by caddy
 
-### 4 - reload caddy to take changes in consideration
+### 4/4 - reload caddy to take changes in consideration
 
 ```bash
 docker exec caddy caddy reload --config /etc/caddy/Caddyfile
