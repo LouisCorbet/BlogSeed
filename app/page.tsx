@@ -4,6 +4,10 @@ import type { Metadata } from "next";
 import { readIndex } from "@/lib/store";
 import { readSiteSettings } from "@/lib/siteSettings";
 import ArticleSearch from "./components/ArticlesSearch";
+// app/page.tsx
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // --- Metadatas dynamiques depuis siteSettings ---
 export async function generateMetadata(): Promise<Metadata> {
