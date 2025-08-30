@@ -94,7 +94,7 @@ export default function ArticleForm({ article }: { article?: Article }) {
             <div className="flex items-center gap-3">
               <div className="w-16 h-16 relative rounded overflow-hidden border border-base-300">
                 <Image
-                  src={`/${article.imgPath}`}
+                  src={article.imgPath}
                   alt={article.title}
                   fill
                   className="object-cover"
