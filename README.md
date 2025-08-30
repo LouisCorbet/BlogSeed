@@ -7,7 +7,7 @@ Once modifications had been made to the projet, you want to update docker image.
 Simply run :
 
 ```bash
-docker build . -t louiscorbet/blogseed:latest
+docker build -t louiscorbet/blogseed:latest .
 ```
 
 ## Test it
