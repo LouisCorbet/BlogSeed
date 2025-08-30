@@ -10,7 +10,7 @@ type Props = {
   subTitle: string; // ex. "Explorer, apprendre et partager"
 };
 
-export default function HeaderClient({ logoSrc, name, subTitle }: Props) {
+export default function HeaderClient({ logoSrc = "/", name, subTitle }: Props) {
   return (
     <header className="bg-base-300 shadow-md ">
       {/* barre du haut */}

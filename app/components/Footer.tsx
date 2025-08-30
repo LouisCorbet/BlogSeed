@@ -1,6 +1,6 @@
 // app/components/Footer.tsx
 import Link from "next/link";
-import { readSiteSettings, SiteSettings } from "@/lib/siteSettings";
+import { readSiteSettings } from "@/lib/siteSettings";
 
 export default async function Footer() {
   const s = await readSiteSettings();

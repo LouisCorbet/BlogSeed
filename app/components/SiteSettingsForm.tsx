@@ -115,7 +115,7 @@ export default function SiteSettingsForm({
                 {settings.defaultOg && (
                   <div className="w-16 h-16 relative rounded overflow-hidden border border-base-300">
                     <Image
-                      src={settings.defaultOg}
+                      src={settings.defaultOg || "/"}
                       alt="Aperçu OG"
                       fill
                       className="object-cover"
@@ -155,7 +155,7 @@ export default function SiteSettingsForm({
                 {settings.headerLogo && (
                   <div className="w-16 h-16 relative rounded overflow-hidden border border-base-300">
                     <Image
-                      src={settings.headerLogo}
+                      src={settings.headerLogo || "/"}
                       alt="Aperçu Header Logo"
                       fill
                       className="object-cover"
@@ -195,7 +195,7 @@ export default function SiteSettingsForm({
                 {settings.homeLogo && (
                   <div className="w-16 h-16 relative rounded overflow-hidden border border-base-300">
                     <Image
-                      src={settings.homeLogo}
+                      src={settings.homeLogo || "/"}
                       alt="Aperçu Home Logo"
                       fill
                       className="object-cover"
@@ -234,7 +234,7 @@ export default function SiteSettingsForm({
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 relative rounded overflow-hidden border border-base-300">
                   <Image
-                    src={settings.favicon || ""}
+                    src={settings.favicon || "/"}
                     alt="Aperçu Favicon"
                     fill
                     className="object-cover"

@@ -1,0 +1,24 @@
+Dockerfile
+.dockerignore
+node_modules
+npm-debug.log
+README.md
+.next
+.git
+.env
+
+# Ignorer tout le contenu de data/
+data/**
+
+# …sauf le dossier lui-même et le placeholder
+!data/
+!data/.gitkeep
+
+# Garder le dossier data/articles/
+!data/articles/
+
+# …tout en ignorant son contenu
+data/articles/**
+
+# …sauf le placeholder pour versionner le dossier vide
+!data/articles/.gitkeep

@@ -1,5 +1,4 @@
 // app/page.tsx
-import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { readIndex } from "@/lib/store";
@@ -93,9 +92,6 @@ export default async function Home() {
               </span>
             </h1>
             <p className="py-4 text-base-content/70">{s.tagline}</p>
-            <Link href="/articles" className="link link-primary">
-              Parcourir les articles →
-            </Link>
           </div>
 
           {/* Visuel : on réutilise l’OG par défaut comme vignette (fallback favicon) */}

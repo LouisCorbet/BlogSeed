@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import ArticleCard from "./ArticleCard";
 import { Article } from "@/lib/store";
 

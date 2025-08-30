@@ -1,4 +1,5 @@
 // lib/siteSettings.ts
+import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -57,17 +58,23 @@ export type SiteSettings = {
   theme: DaisyTheme; // thème, optionnel
 };
 
-const DEFAULT_SETTINGS: SiteSettings = {
-  tagline: "Guides, articles et inspirations. Léger, rapide et SEO-friendly.",
-  // twitter: "",
-  contactEmail: "",
-  defaultOg: "/og-default.jpg",
-  name: process.env.SITE_NAME || "",
-  url: process.env.SITE_URL || "", // domaine absolu (sans slash final)
-  localeDefault: process.env.SITE_LOCALE_DEFAULT || "fr_FR",
-  titleTemplate: `%s — ${process.env.SITE_NAME}`,
-  theme: DaisyThemes[0],
-};
+function getDefaultSettings(): SiteSettings {
+  return {
+    tagline: "Guides, articles et inspirations. Léger, rapide et SEO-friendly.",
+    contactEmail: "",
+    defaultOg: "/og-default.png",
+    name: process.env.SITE_NAME || "Nope",
+    url: process.env.SITE_URL || "https://blogseed.com",
+    localeDefault: process.env.SITE_LOCALE_DEFAULT || "fr_FR",
+    titleTemplate: `%s — ${process.env.SITE_NAME || "Nope"}`,
+    theme: DaisyThemes[0],
+    headerLogo: "/header-logo.png",
+    homeLogo: "/home-logo.png",
+    favicon: "/favicon.ico",
+    about: "",
+    subTitle: "",
+  };
+}
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const FILE_PATH = path.join(DATA_DIR, "site.json");
@@ -76,10 +83,10 @@ export async function readSiteSettings(): Promise<SiteSettings> {
   try {
     const raw = await fs.readFile(FILE_PATH, "utf8");
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    return { ...getDefaultSettings(), ...parsed };
   } catch {
     // si le fichier n'existe pas encore
-    return DEFAULT_SETTINGS;
+    return getDefaultSettings();
   }
 }
 
