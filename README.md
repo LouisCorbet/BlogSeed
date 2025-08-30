@@ -28,6 +28,17 @@ docker push louiscorbet/blogseed:latest
 
 Your image is up to date, and can be pulled from anywhere now
 
+## Update existing container
+
+To update an existing container, remove it, pull new image, and recreate it. Volume will not be impacted :
+
+```bash
+docker stop my_website
+docker rm my_website
+docker pull louiscorbet/blogseed:latest
+docker run -d --name my_website --network web --user 1001:1001 --env-file /opt/my_website/secrets/my_website.env  -v my_website-data:/app/data  louiscorbet/blogseed:latest
+```
+
 # Deploy a new blog
 
 ## The server is new : configure it
@@ -135,7 +146,7 @@ ADMIN_PASS=admin
 You may be asked to authenticate when running this command
 
 ```bash
-docker run -d --name new_website_name --network web --user 1001:1001 --env-file /opt/website_name/secrets/website_name.env  -v website_name-data:/app/data louiscorbet/blogseed:latest
+docker run -d --name my_website --network web --user 1001:1001 --env-file /opt/my_website/secrets/my_website.env  -v my_website-data:/app/data  louiscorbet/blogseed:latest
 ```
 
 - `--name` to give a name to the container
