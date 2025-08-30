@@ -50,7 +50,7 @@ export default function ArticlesTable({ articles }: { articles: any[] }) {
                           <Image
                             width={64}
                             height={64}
-                            src={`/${a.imgPath}`}
+                            src={a.imgPath}
                             alt={a.title}
                             className="w-16 h-16 object-cover rounded"
                           />

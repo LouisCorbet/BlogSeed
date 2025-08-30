@@ -92,14 +92,13 @@ export default async function ArticlePage({
           <div className="grid md:grid-cols-2 gap-6 items-center justify-items-center md:justify-items-start">
             {/* Image */}
             {meta.imgPath && (
-              <Image
-                src={`/${meta.imgPath}`}
+              <img
+                src={meta.imgPath}
                 alt={meta.imageAlt || meta.title || meta.slug}
                 width={300}
                 height={300}
                 sizes="(min-width: 768px) 300px, 90vw"
                 className="w-[90vw] md:w-[300px] h-auto object-contain rounded-xl"
-                priority
               />
             )}
 

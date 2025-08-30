@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import fs from "fs/promises";
 import path from "path";
-import { v4 } from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import {
   DaisyThemes,
@@ -18,14 +18,16 @@ interface PostIndexEntry {
   title: string;
   author: string;
   date: string;
-  imgPath: string; // chemin public de l'image (ex: /uploads/slug-123456.webp)
-  imageAlt: string; // texte alternatif de l'image
-  catchphrase?: string; // phrase d'accroche
+  imgPath: string; // ex: /images/slug-123456.webp
+  imageAlt: string;
+  catchphrase?: string;
 }
 
-const articlesDir = path.join(process.cwd(), "data/articles");
+const dataDir = path.join(process.cwd(), "data");
+const articlesDir = path.join(dataDir, "articles");
+const htmlDir = path.join(articlesDir, "html");
 const indexFile = path.join(articlesDir, "index.json");
-const imgDir = path.join(process.cwd(), "public/images");
+const imgDir = path.join(dataDir, "images"); // ⬅️ DOIT matcher ta route /images
 
 const MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -45,40 +47,58 @@ function sanitizeSlug(input: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-// function escapeHtml(s: string) {
-//   return s
-//     .replaceAll("&", "&amp;")
-//     .replaceAll("<", "&lt;")
-//     .replaceAll(">", "&gt;")
-//     .replaceAll('"', "&quot;")
-//     .replaceAll("'", "&#39;");
-// }
+async function ensureDirs() {
+  await fs.mkdir(htmlDir, { recursive: true, mode: 0o755 });
+  await fs.mkdir(imgDir, { recursive: true, mode: 0o755 });
+}
+
+async function atomicWrite(
+  filePath: string,
+  data: string | Buffer,
+  mode?: number
+) {
+  const tmp = filePath + ".tmp";
+  await fs.writeFile(tmp, data, mode ? { mode } : undefined);
+  await fs.rename(tmp, filePath);
+}
+
+async function readIndexSafe(): Promise<PostIndexEntry[]> {
+  try {
+    const raw = await fs.readFile(indexFile, "utf-8");
+    return JSON.parse(raw) as PostIndexEntry[];
+  } catch {
+    return [];
+  }
+}
+
+async function safeUnlink(p: string) {
+  try {
+    await fs.unlink(p);
+  } catch {}
+}
 
 /**
- * Ajout / édition d’un article avec image (facultative)
- * Champs attendus dans le FormData :
+ * Ajout / édition d’un article (image facultative)
+ * Fields attendus :
  * - slug, title, author, htmlContent, date? (YYYY-MM-DD ou ISO)
- * - image? (File), imageAlt? (string)
+ * - image? (File), imageAlt?, catchphrase?
+ * - id? (pour édition)
  */
 export async function saveArticle(formData: FormData) {
-  // Fields normalization
+  await ensureDirs();
 
   const providedId = String(formData.get("id") ?? "");
-  let oldArticle: PostIndexEntry | undefined;
-  if (providedId) {
-    try {
-      const index = JSON.parse(
-        await fs.readFile(indexFile, "utf-8")
-      ) as PostIndexEntry[];
-      oldArticle = index.find((p) => p.id === providedId);
-    } catch {
-      // Ignore errors
-    }
-  }
+  const index = await readIndexSafe();
+  const oldArticle = providedId
+    ? index.find((p) => p.id === providedId)
+    : undefined;
 
+  // slug
+  const baseSlug = String(formData.get("slug") ?? "");
   const slug = providedId
-    ? String(formData.get("slug") ?? "")
-    : `${sanitizeSlug(String(formData.get("slug") ?? ""))}-${Date.now()}`;
+    ? baseSlug // édition: on prend ce qui est fourni (tu peux forcer sanitize si tu veux)
+    : `${sanitizeSlug(baseSlug)}-${Date.now()}`;
+
   const title = String(formData.get("title") ?? "").trim();
   const author = String(formData.get("author") ?? "").trim();
   const htmlInput = String(formData.get("htmlContent") ?? "");
@@ -89,14 +109,9 @@ export async function saveArticle(formData: FormData) {
       : new Date().toISOString();
   const imageAlt = String(formData.get("imageAlt") ?? "").trim();
   const catchphrase = String(formData.get("catchphrase") ?? "").trim();
-  const articleId = providedId || v4();
+  const articleId = providedId || uuidv4();
 
-  // Make sure folders exist
-  // await fs.mkdir(articlesDir, { recursive: true });
-  await fs.mkdir(path.join(articlesDir, "html"), { recursive: true });
-  await fs.mkdir(imgDir, { recursive: true });
-
-  // Handle image errors
+  // Image
   const providedImage = formData.get("image");
   let fileName = "";
   if (providedImage instanceof File && providedImage.size > 0) {
@@ -104,106 +119,57 @@ export async function saveArticle(formData: FormData) {
     const ext =
       MIME_TO_EXT[mime] ||
       path.extname(providedImage.name).replace(".", "").toLowerCase();
-    if (!ext) {
+    if (!ext)
       throw new Error(`Type d'image non pris en charge: ${mime || "inconnu"}`);
-    }
-    if (providedImage.size > 8 * 1024 * 1024) {
+    if (providedImage.size > 8 * 1024 * 1024)
       throw new Error("Image trop lourde (max 8 Mo).");
+
+    // si le slug change, supprime l’ancienne image via son chemin connu (robuste si l’extension a changé)
+    if (oldArticle?.imgPath && slug !== oldArticle.slug) {
+      const oldBasename = path.basename(oldArticle.imgPath); // ex: slug-123.webp
+      await safeUnlink(path.join(imgDir, oldBasename));
     }
 
-    // if slug changed, delete old image
-    if (slug !== oldArticle?.slug) {
-      const oldFileName = `${oldArticle?.slug}.${ext}`;
-      await safeUnlink(path.join(imgDir, oldFileName));
-    }
-
-    // Image saving
     fileName = `${slug}.${ext}`;
-    const fileBuffer = Buffer.from(await providedImage.arrayBuffer());
     const diskPath = path.join(imgDir, fileName);
-    await fs.writeFile(diskPath, fileBuffer);
+    const buf = Buffer.from(await providedImage.arrayBuffer());
+
+    await atomicWrite(diskPath, buf, 0o644);
+
+    // pas indispensable si ta route /images est dynamic+revalidate=0, mais OK
+    revalidatePath(`/images/${fileName}`);
   } else if (!providedId) {
+    // création sans image
     throw new Error("Image manquante");
   }
 
-  // if slug changed, delete old HTML
-  if (slug !== oldArticle?.slug) {
-    const oldHtmlPath = path.join(articlesDir, `html/${oldArticle?.slug}.html`);
-    await safeUnlink(oldHtmlPath);
+  // si le slug change, supprime l’ancien HTML
+  if (oldArticle && slug !== oldArticle.slug) {
+    await safeUnlink(path.join(htmlDir, `${oldArticle.slug}.html`));
   }
 
-  // HTML saving
-  const htmlPath = path.join(articlesDir, `html/${slug}.html`);
-  await fs.writeFile(htmlPath, htmlInput, "utf-8");
+  // HTML
+  const htmlPath = path.join(htmlDir, `${slug}.html`);
+  await atomicWrite(htmlPath, htmlInput, 0o644);
 
-  // Index update
-  //// Extract existing entries
-  let index: PostIndexEntry[] = [];
-  try {
-    index = JSON.parse(
-      await fs.readFile(indexFile, "utf-8")
-    ) as PostIndexEntry[];
-  } catch {
-    index = [];
-  }
-
-  //// Replace/add ours
-  const rest = index.filter((p) => p.id !== articleId);
-  rest.push({
-    id: v4(),
+  // Index
+  const updated: PostIndexEntry = {
+    id: articleId, // ⬅️ conserve l’ID (pas de nouveau v4 à chaque édition)
     slug,
     title,
     author,
     date: dateIso,
-    imgPath: fileName !== "" ? `images/${fileName}` : oldArticle?.imgPath || "",
-    imageAlt: imageAlt,
+    imgPath: fileName ? `/images/${fileName}` : oldArticle?.imgPath ?? "",
+    imageAlt,
     catchphrase,
-  });
+  };
 
-  //// Update index.json
-  await fs.writeFile(indexFile, JSON.stringify(rest, null, 2), "utf-8");
+  const rest = index.filter((p) => p.id !== articleId);
+  rest.push(updated);
+  await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
 
-  // Revalidation ISR
-  revalidatePath("/");
-  revalidatePath("/articles");
-  revalidatePath(`/articles/${slug}`);
-}
-
-async function safeUnlink(p: string) {
-  try {
-    await fs.unlink(p);
-  } catch {
-    // fichier déjà absent : ignorer
-  }
-}
-
-export async function deleteArticle(formData: FormData) {
-  const slug = sanitizeSlug(String(formData.get("slug") ?? ""));
-  if (!slug) return;
-
-  // 1) Charger l'index
-  let index: Array<{ slug: string; imgPath: string }> = [];
-  try {
-    index = JSON.parse(await fs.readFile(indexFile, "utf-8"));
-  } catch {
-    index = [];
-  }
-
-  // 2) Trouver l'article à supprimer (pour récupérer son image)
-  const toDelete = index.find((p) => p.slug === slug);
-  if (!toDelete) return;
-
-  // 3) Supprimer le fichier HTML
-  const htmlPath = path.join(articlesDir, `html/${slug}.html`);
-  await safeUnlink(htmlPath);
-  const imgPath = path.join(imgDir, path.basename(toDelete.imgPath));
-  await safeUnlink(imgPath);
-
-  // 4) Mettre à jour l'index.json (on retire l'entrée)
-  const updated = index.filter((p) => p.slug !== slug);
-  await fs.writeFile(indexFile, JSON.stringify(updated, null, 2), "utf-8");
-
-  // 6) Revalidation ISR
+  // Revalidation ISR (si tu as des pages SSG/ISR)
+  revalidatePath("/", "layout");
   revalidatePath("/");
   revalidatePath("/articles");
   revalidatePath(`/articles/${slug}`);
@@ -212,6 +178,10 @@ export async function deleteArticle(formData: FormData) {
 // Optionnel : limite de 8 Mo
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
+/**
+ * Écrit une image de paramétrage (OG / logos) dans data/images
+ * et retourne UNE URL publique sous /images/...
+ */
 async function changeImgSetting({
   formData,
   inputName,
@@ -225,37 +195,31 @@ async function changeImgSetting({
   defaultFilename: string;
   currentFilePath: string;
 }): Promise<string> {
-  // let defaultOg = String(formData.get("defaultOg") ?? "").trim();
   const file = formData.get(inputName) as File | null;
-  let fname = "";
+  if (!file || file.size === 0) return currentFilePath;
 
-  if (file && file.size > 0) {
-    if (file.size > MAX_FILE_BYTES) {
-      throw new Error("Fichier trop volumineux (max 8 Mo).");
-    }
-    const settings: SiteSettings = await readSiteSettings();
-    if (
-      typeof (settings as Record<string, unknown>)[settingName] === "string"
-    ) {
-      const oldImgPath = path.join(
-        process.cwd(),
-        "public",
-        (settings as Record<string, unknown>)[settingName] as string
-      );
-      console.log("Deleting old image:", oldImgPath);
-      await safeUnlink(oldImgPath);
-    }
+  if (file.size > MAX_FILE_BYTES)
+    throw new Error("Fichier trop volumineux (max 8 Mo).");
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buf = Buffer.from(arrayBuffer);
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    fname = `${defaultFilename}.${ext}`;
-    const dir = path.join(process.cwd(), "public");
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(path.join(dir, fname), buf);
-    return `/${fname}`;
+  // supprimer l’ancienne si connue
+  const settings: SiteSettings = await readSiteSettings();
+  const oldUrl = (settings as Record<string, unknown>)[settingName] as
+    | string
+    | undefined; // ex: /images/header-logo.png
+  if (oldUrl) {
+    const oldBase = path.join(imgDir, path.basename(oldUrl));
+    await safeUnlink(oldBase);
   }
-  return currentFilePath;
+
+  // écrire la nouvelle
+  await fs.mkdir(imgDir, { recursive: true, mode: 0o755 });
+  const ext = (file.name.split(".").pop() || "png").toLowerCase();
+  const fname = `${defaultFilename}.${ext}`;
+  const dst = path.join(imgDir, fname);
+  const buf = Buffer.from(await file.arrayBuffer());
+
+  await atomicWrite(dst, buf, 0o644);
+  return `/images/${fname}`;
 }
 
 export async function saveSiteSettings(formData: FormData) {
@@ -266,42 +230,12 @@ export async function saveSiteSettings(formData: FormData) {
   const theme = (DaisyThemes as readonly string[]).includes(themeRaw)
     ? (themeRaw as SiteSettings["theme"])
     : undefined;
-  // const twitter = String(formData.get("twitter") ?? "").trim() || undefined;
   const contactEmail =
     String(formData.get("contactEmail") ?? "").trim() || undefined;
 
-  // // Image OG (upload optionnel)
-  // let defaultOg = String(formData.get("defaultOg") ?? "").trim();
-  // console.log("formData:", formData);
-  // const file = formData.get("defaultOgFile") as File | null;
-
-  // if (file && file.size > 0) {
-  //   if (file.size > MAX_FILE_BYTES) {
-  //     throw new Error("Fichier trop volumineux (max 8 Mo).");
-  //   }
-
-  //   //delete old image
-  //   //get current settings
-  //   const settings = await readSiteSettings();
-  //   if (settings.defaultOg) {
-  //     const oldImgPath = path.join(process.cwd(), "public", settings.defaultOg);
-  //     console.log("Deleting old image:", oldImgPath);
-  //     await safeUnlink(oldImgPath);
-  //   }
-
-  //   const arrayBuffer = await file.arrayBuffer();
-  //   const buf = Buffer.from(arrayBuffer);
-  //   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  //   const fname = `og-default.${ext}`;
-  //   const dir = path.join(process.cwd(), "public");
-  //   await fs.mkdir(dir, { recursive: true });
-  //   await fs.writeFile(path.join(dir, fname), buf);
-  //   defaultOg = `/${fname}`;
-  // }
-
-  //get current sitesettings
   const current = await readSiteSettings();
 
+  // images de settings -> /images/*
   const newDefaultOg = await changeImgSetting({
     formData,
     inputName: "defaultOgFile",
@@ -317,6 +251,7 @@ export async function saveSiteSettings(formData: FormData) {
     defaultFilename: "header-logo",
     currentFilePath: current.headerLogo || "",
   });
+
   const newHomeLogo = await changeImgSetting({
     formData,
     inputName: "homeLogoFile",
@@ -324,43 +259,61 @@ export async function saveSiteSettings(formData: FormData) {
     defaultFilename: "home-logo",
     currentFilePath: current.homeLogo || "",
   });
-  //update favicon
-  const newFavicon = await changeImgSetting({
-    formData,
-    inputName: "faviconFile",
-    settingName: "favicon",
-    defaultFilename: "favicon",
-    currentFilePath: current.favicon || "",
-  });
 
-  const file = formData.get("faviconFile") as File | null;
-  if (file && file.size > 0) {
-    if (file.size > MAX_FILE_BYTES) {
+  // favicon: data/favicon.ico (servi via app/favicon.ico/route.ts)
+  const fav = formData.get("faviconFile") as File | null;
+  if (fav && fav.size > 0) {
+    if (fav.size > MAX_FILE_BYTES)
       throw new Error("Fichier trop volumineux (max 8 Mo).");
-    }
-    const arrayBuffer = await file.arrayBuffer();
-    const buf = Buffer.from(arrayBuffer);
-    const dir = path.join(process.cwd(), "public");
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(path.join(dir, "favicon.ico"), buf);
+    await fs.mkdir(dataDir, { recursive: true, mode: 0o755 });
+    const buf = Buffer.from(await fav.arrayBuffer());
+    await atomicWrite(path.join(dataDir, "favicon.ico"), buf, 0o644);
   }
 
   await writeSiteSettings({
     ...current,
     tagline,
-    // twitter,
     contactEmail,
     defaultOg: newDefaultOg || current.defaultOg,
     headerLogo: newHeaderLogo || current.headerLogo,
     homeLogo: newHomeLogo || current.homeLogo,
-    favicon: newFavicon || current.favicon,
+    favicon: current.favicon, // la route /favicon.ico lit data/favicon.ico directement
     subTitle,
     about,
     theme: theme || current.theme,
   });
 
-  // Revalidation : home + layout (au besoin)/ pages d'articles (metas)
   revalidatePath("/", "layout");
   revalidatePath("/");
   revalidatePath("/articles");
+}
+
+/** Suppression d’un article */
+export async function deleteArticle(formData: FormData) {
+  await ensureDirs();
+
+  const slug = sanitizeSlug(String(formData.get("slug") ?? ""));
+  if (!slug) return;
+
+  // charge index
+  const index = await readIndexSafe();
+
+  // trouve l’article
+  const toDelete = index.find((p) => p.slug === slug);
+  if (!toDelete) return;
+
+  // supprime HTML + image
+  await safeUnlink(path.join(htmlDir, `${slug}.html`));
+  if (toDelete.imgPath) {
+    const base = path.basename(toDelete.imgPath); // “slug.ext”
+    await safeUnlink(path.join(imgDir, base));
+  }
+
+  // maj index
+  const updated = index.filter((p) => p.slug !== slug);
+  await atomicWrite(indexFile, JSON.stringify(updated, null, 2), 0o644);
+
+  revalidatePath("/");
+  revalidatePath("/articles");
+  revalidatePath(`/articles/${slug}`);
 }

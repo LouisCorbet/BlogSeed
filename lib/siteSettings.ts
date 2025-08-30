@@ -2,6 +2,7 @@
 import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
+import { unstable_noStore as noStore } from "next/cache"; // ⬅️
 
 export const DaisyThemes = [
   "light",
@@ -68,8 +69,8 @@ function getDefaultSettings(): SiteSettings {
     localeDefault: process.env.SITE_LOCALE_DEFAULT || "fr_FR",
     titleTemplate: `%s — ${process.env.SITE_NAME || "Nope"}`,
     theme: DaisyThemes[0],
-    headerLogo: "/header-logo.png",
-    homeLogo: "/home-logo.png",
+    headerLogo: "/images/header-logo.png",
+    homeLogo: "/images/home-logo.png",
     favicon: "/favicon.ico",
     about: "",
     subTitle: "",
@@ -80,6 +81,7 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const FILE_PATH = path.join(DATA_DIR, "site.json");
 
 export async function readSiteSettings(): Promise<SiteSettings> {
+  noStore();
   try {
     const raw = await fs.readFile(FILE_PATH, "utf8");
     const parsed = JSON.parse(raw);
@@ -97,6 +99,7 @@ export async function writeSiteSettings(next: SiteSettings): Promise<void> {
   // validation très légère (garde simple)
   if (!next.name?.trim()) throw new Error("Le nom du site est requis.");
   if (!next.url?.startsWith("http")) throw new Error("URL du site invalide.");
+  console.log(next);
   if (!next.defaultOg?.startsWith("/"))
     throw new Error("defaultOg doit commencer par /");
 

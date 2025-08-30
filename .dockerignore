@@ -22,3 +22,12 @@ data/articles/**
 
 # …sauf le placeholder pour versionner le dossier vide
 !data/articles/.gitkeep
+
+# Garder le dossier data/images/
+!data/images/
+
+# …tout en ignorant son contenu
+data/images/**
+
+# …sauf le placeholder pour versionner le dossier vide
+!data/images/.gitkeep

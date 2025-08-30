@@ -117,12 +117,17 @@ Got to `/opt/website_name/secrets` and create `website_name.env`
 
 ```bash
 # Site identity
-SITE_NAME=BlogSeed # displayed in header, not editable
-SITE_URL=https://new-website.com # used for SEO
-SITE_LOCALE_DEFAULT=fr_FR # used for SEO
+# displayed in header, not editable
+SITE_NAME=BlogSeed
+# used for SEO
+SITE_URL=https://new-website.com
+# used for SEO
+SITE_LOCALE_DEFAULT=fr_FR
 
-ADMIN_USER=louis # used for admin page
-ADMIN_PASS=motdepasse-robuste # used for admin page
+# used for admin page
+ADMIN_USER=admin
+# used for admin page
+ADMIN_PASS=admin
 ```
 
 ### 3/4 - Create a new docker container with our image
@@ -130,10 +135,14 @@ ADMIN_PASS=motdepasse-robuste # used for admin page
 You may be asked to authenticate when running this command
 
 ```bash
-docker run -d --name new_website_name --network web --env-file /opt/website_name/secrets/website_name.env  -v /opt/website_name/data:/app/data louiscorbet/blogseed:latest
+docker run -d --name new_website_name --network web --user 1001:1001 --env-file /opt/website_name/secrets/website_name.env  -v website_name-data:/app/data louiscorbet/blogseed:latest
 ```
 
-This container will now be part of the network used by caddy
+- `--name` to give a name to the container
+- `--network` to put container on the same network to caddy
+- `--user` : the value `0:0` allow container to write files in data folder and avoid permission errors
+- `--env-file` to bind the `.env` file
+- `-v` to create volumes to store data outside the container --> we can remove and recreate the container without deleting data
 
 ### 4/4 - reload caddy to take changes in consideration
 
