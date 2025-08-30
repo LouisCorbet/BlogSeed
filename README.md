@@ -113,7 +113,7 @@ new-domain.com, www.new-domain.com { # bloc for new-website
 
 ### 2/4 - Create a `.env` file for our new website
 
-Got to `/opt/secrets` and create `website_name.env`
+Got to `/opt/website_name/secrets` and create `website_name.env`
 
 ```bash
 # Site identity
@@ -130,7 +130,7 @@ ADMIN_PASS=motdepasse-robuste # used for admin page
 You may be asked to authenticate when running this command
 
 ```bash
-docker run -d --name new_website_name --network web louiscorbet/blogseed:latest --env-file /opt/secrets/website_name.env
+docker run -d --name new_website_name --network web --env-file /opt/website_name/secrets/website_name.env  -v /opt/website_name/data:/app/data louiscorbet/blogseed:latest
 ```
 
 This container will now be part of the network used by caddy

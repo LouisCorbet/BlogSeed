@@ -1,7 +1,7 @@
 // lib/siteSettings.ts
+import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
-import "../envConfig";
 
 export const DaisyThemes = [
   "light",
@@ -63,10 +63,10 @@ function getDefaultSettings(): SiteSettings {
     tagline: "Guides, articles et inspirations. Léger, rapide et SEO-friendly.",
     contactEmail: "",
     defaultOg: "/og-default.png",
-    name: process.env.SITE_NAME || "BloggSeed",
+    name: process.env.SITE_NAME || "Nope",
     url: process.env.SITE_URL || "https://blogseed.com",
     localeDefault: process.env.SITE_LOCALE_DEFAULT || "fr_FR",
-    titleTemplate: `%s — ${process.env.SITE_NAME || "BlogSeed"}`,
+    titleTemplate: `%s — ${process.env.SITE_NAME || "Nope"}`,
     theme: DaisyThemes[0],
     headerLogo: "/header-logo.png",
     homeLogo: "/home-logo.png",
@@ -85,7 +85,6 @@ export async function readSiteSettings(): Promise<SiteSettings> {
     const parsed = JSON.parse(raw);
     return { ...getDefaultSettings(), ...parsed };
   } catch {
-    console.log("Erreur lors de la lecture des paramètres du site");
     // si le fichier n'existe pas encore
     return getDefaultSettings();
   }
