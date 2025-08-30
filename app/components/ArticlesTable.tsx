@@ -43,7 +43,7 @@ export default function ArticlesTable({ articles }: { articles: Article[] }) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <h2 className="card-title">Articles existants</h2>
           <Link
-            href="/articles"
+            href="/"
             className="btn btn-ghost btn-sm self-start sm:self-auto"
           >
             Voir le blog →
