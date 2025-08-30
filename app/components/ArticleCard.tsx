@@ -13,7 +13,7 @@ export default function ArticleCard({ article }: { article: Article }) {
       {article.imgPath && (
         <figure className="relative w-full h-40">
           <Image
-            src={`/${article.imgPath}`}
+            src={article.imgPath}
             alt={article.title}
             fill
             className="object-cover rounded-t"
