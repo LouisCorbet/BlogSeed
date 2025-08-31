@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { readIndex } from "@/lib/store";
 import { readSiteSettings } from "@/lib/siteSettings";
 import ArticleSearch from "./components/ArticlesSearch";
+import AdSlot from "./components/AdSlot";
 // app/page.tsx
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -106,6 +107,7 @@ export default async function Home() {
           />
         </div>
       </section>
+      <AdSlot slot="1234567890" />
 
       {/* 🔎 Section Recherche + Liste filtrée */}
       <ArticleSearch items={all} />

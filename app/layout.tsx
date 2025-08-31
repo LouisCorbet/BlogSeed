@@ -8,6 +8,7 @@ import Footer from "./components/Footer";
 import { readSiteSettings } from "@/lib/siteSettings";
 import GAReporter from "./components/GAReporter";
 import { GA_MEASUREMENT_ID } from "@/lib/gtag";
+import ConsentBanner from "./components/ConsentBanner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,6 +61,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
   };
 }
+const ADS_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT || "";
 
 export default async function RootLayout({
   children,
@@ -74,7 +76,22 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
       >
+        {/* Consent Mode par défaut (bloqué) */}
+        <Script id="consent-default" strategy="beforeInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('consent', 'default', {
+              ad_storage: 'denied',
+              ad_user_data: 'denied',
+              ad_personalization: 'denied',
+              analytics_storage: 'denied'
+            });
+          `}
+        </Script>
         <Header />
+
+        <ConsentBanner />
         <main className="flex-1 bg-base-200">{children}</main>
         <Footer />
 
@@ -96,6 +113,16 @@ export default async function RootLayout({
             </Script>
             <GAReporter />
           </>
+        )}
+        {/* Google AdSense */}
+        {process.env.NODE_ENV === "production" && ADS_CLIENT && (
+          <Script
+            id="adsense"
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADS_CLIENT}`}
+            strategy="afterInteractive"
+            crossOrigin="anonymous"
+          />
         )}
       </body>
     </html>
