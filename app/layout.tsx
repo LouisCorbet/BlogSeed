@@ -5,6 +5,10 @@ import "./globals.css";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { readSiteSettings } from "@/lib/siteSettings";
+// app/page.tsx
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({

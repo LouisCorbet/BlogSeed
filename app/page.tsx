@@ -4,6 +4,10 @@ import type { Metadata } from "next";
 import { readIndex } from "@/lib/store";
 import { readSiteSettings } from "@/lib/siteSettings";
 import ArticleSearch from "./components/ArticlesSearch";
+// app/page.tsx
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // --- Metadatas dynamiques depuis siteSettings ---
 export async function generateMetadata(): Promise<Metadata> {
@@ -86,10 +90,7 @@ export default async function Home() {
         <div className="hero-content max-w-5xl w-full flex-col lg:flex-row gap-10 py-10">
           <div className="flex-1">
             <h1 className="text-4xl lg:text-5xl font-bold tracking-tight">
-              {s.name.split(" ")[0]}
-              <span className="text-primary">
-                {s.name.split(" ").slice(1).join(" ")}
-              </span>
+              {s.name}
             </h1>
             <p className="py-4 text-base-content/70">{s.tagline}</p>
           </div>

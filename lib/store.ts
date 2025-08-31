@@ -24,6 +24,23 @@ export type Article = {
 export async function readIndex(): Promise<Article[]> {
   try {
     const raw = await fs.readFile(ARTICLES_INDEX_PATH, "utf8");
+    const articles: Article[] = JSON.parse(raw);
+
+    const now = new Date();
+
+    return articles.filter((a) => {
+      if (!a.date) return true; // si pas de date, on considère que c'est publiable
+      const d = new Date(a.date);
+      return !isNaN(d.getTime()) && d <= now;
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function readIndexAdmin(): Promise<Article[]> {
+  try {
+    const raw = await fs.readFile(ARTICLES_INDEX_PATH, "utf8");
     return JSON.parse(raw);
   } catch {
     return [];
