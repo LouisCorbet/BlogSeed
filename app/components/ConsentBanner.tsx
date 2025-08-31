@@ -95,6 +95,8 @@ export default function ConsentBannerHybrid({
 
   const actions: React.CSSProperties = {
     display: "flex",
+    justifyContent: "space-around",
+    width: "100%",
     gap: 10,
     flex: "0 0 auto",
   };
@@ -115,8 +117,8 @@ export default function ConsentBannerHybrid({
           className="m-0 text-[0.95rem] leading-relaxed text-base-content/80"
           style={textBox}
         >
-          Nous utilisons des cookies pour mesurer l’audience et afficher des
-          annonces personnalisées. Vous pouvez accepter ou refuser.{" "}
+          Nous utilisons des cookies pour mesurer l&apos;audience et afficher
+          des annonces personnalisées. Vous pouvez accepter ou refuser.
           {/* <Link
             href={privacyUrl}
             className="link link-hover font-medium"

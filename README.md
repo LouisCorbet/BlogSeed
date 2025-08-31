@@ -137,9 +137,12 @@ SITE_LOCALE_DEFAULT=fr_FR
 # Google Analytics
 NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
 
+# Google AdSense
+NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-xxxxxxxxxxxxxxxx
+# ADS_TXT_EXTRA="example.com, 123, RESELLER, abc\nexample2.com, 456, DIRECT, def"
+
 ADMIN_USER=louiss
 ADMIN_PASS=mdp
-
 ```
 
 ### 3/4 - Create a new docker container with our image
