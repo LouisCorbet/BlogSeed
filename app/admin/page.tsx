@@ -54,6 +54,7 @@ export default async function AdminPage({
         {/* Articles table */}
         <section id="articles">
           <ArticleForm
+            key={editing?.id ?? "new"}
             article={editing ? { ...editing, html: html ?? "" } : undefined}
           />
         </section>

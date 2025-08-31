@@ -31,11 +31,7 @@ export default function SiteSettingsForm({
           (SEO) et l’interface.
         </p>
 
-        <form
-          action={saveSiteSettings}
-          encType="multipart/form-data"
-          className="grid gap-6 sm:gap-7"
-        >
+        <form action={saveSiteSettings} className="grid gap-6 sm:gap-7">
           {/* Thème + email */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="form-control">
