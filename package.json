@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@next/env": "^15.5.2",
     "daisyui": "^5.0.50",
     "isomorphic-dompurify": "^2.26.0",
     "jsdom": "^26.1.0",

@@ -3,7 +3,7 @@ import path from "path";
 
 const DATA_PATH = path.join(process.cwd(), "data");
 
-const IMG_PATH = path.join(DATA_PATH, "img");
+// const IMG_PATH = path.join(DATA_PATH, "img");
 
 const ARTICLES_PATH = path.join(DATA_PATH, "articles");
 const ARTICLES_HTML_PATH = path.join(ARTICLES_PATH, "html");
@@ -22,6 +22,23 @@ export type Article = {
 };
 
 export async function readIndex(): Promise<Article[]> {
+  try {
+    const raw = await fs.readFile(ARTICLES_INDEX_PATH, "utf8");
+    const articles: Article[] = JSON.parse(raw);
+
+    const now = new Date();
+
+    return articles.filter((a) => {
+      if (!a.date) return true; // si pas de date, on considère que c'est publiable
+      const d = new Date(a.date);
+      return !isNaN(d.getTime()) && d <= now;
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function readIndexAdmin(): Promise<Article[]> {
   try {
     const raw = await fs.readFile(ARTICLES_INDEX_PATH, "utf8");
     return JSON.parse(raw);
@@ -45,7 +62,7 @@ export async function getHTML(slug: string) {
       path.join(ARTICLES_HTML_PATH, `${slug}.html`),
       "utf8"
     );
-  } catch (err) {
+  } catch {
     // console.error("Erreur lors de la lecture du fichier HTML :", err);
     return null;
   }

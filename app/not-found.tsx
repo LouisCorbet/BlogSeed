@@ -11,12 +11,12 @@ export default function NotFound() {
 
         <h1 className="text-4xl font-bold mb-2">Page introuvable</h1>
         <p className="text-base-content/70 mb-6">
-          Oups… La page que vous cherchez n’existe pas ou a été déplacée.
+          Oups… La page que vous cherchez n&apos;existe pas ou a été déplacée.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/" className="btn btn-primary">
-            ← Retour à l’accueil
+            ← Retour à l&apos;accueil
           </Link>
         </div>
       </div>

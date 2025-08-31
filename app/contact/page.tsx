@@ -1,5 +1,4 @@
 // app/contact/page.tsx
-import Link from "next/link";
 
 export const metadata = {
   title: "Contact",
@@ -29,12 +28,12 @@ export default function ContactPage() {
               <div className="text-primary text-3xl">📧</div>
               <h2 className="card-title">Email</h2>
               <p className="text-base-content/70">contact@monsite.com</p>
-              <Link
+              <a
                 href="mailto:contact@monsite.com"
                 className="btn btn-sm btn-outline mt-2"
               >
                 Envoyer un mail
-              </Link>
+              </a>
             </div>
           </div>
 
@@ -44,12 +43,12 @@ export default function ContactPage() {
               <div className="text-primary text-3xl">📞</div>
               <h2 className="card-title">Téléphone</h2>
               <p className="text-base-content/70">+33 6 12 34 56 78</p>
-              <Link
+              <a
                 href="tel:+33612345678"
                 className="btn btn-sm btn-outline mt-2"
               >
                 Appeler
-              </Link>
+              </a>
             </div>
           </div>
         </div>
