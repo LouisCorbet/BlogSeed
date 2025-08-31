@@ -127,18 +127,19 @@ new-domain.com, www.new-domain.com { # bloc for new-website
 Got to `/opt/website_name/secrets` and create `website_name.env`
 
 ```bash
+NODE_ENV=production
+
 # Site identity
-# displayed in header, not editable
-SITE_NAME=BlogSeed
-# used for SEO
-SITE_URL=https://new-website.com
-# used for SEO
+SITE_NAME=Works!!!!
+SITE_URL=https://monurl.com
 SITE_LOCALE_DEFAULT=fr_FR
 
-# used for admin page
-ADMIN_USER=admin
-# used for admin page
-ADMIN_PASS=admin
+# Google Analytics
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+
+ADMIN_USER=louiss
+ADMIN_PASS=mdp
+
 ```
 
 ### 3/4 - Create a new docker container with our image
