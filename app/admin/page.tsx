@@ -1,4 +1,4 @@
-import { readIndex, getHTML, Article } from "@/lib/store";
+import { readIndexAdmin, getHTML, Article } from "@/lib/store";
 import ArticlesTable from "../components/ArticlesTable";
 import ArticleForm from "../components/ArticleForm";
 import SiteSettingsForm from "../components/SiteSettingsForm";
@@ -17,7 +17,7 @@ export default async function AdminPage({
   const editSlug = Array.isArray(edit) ? edit[0] : edit;
 
   const [articles, settings] = await Promise.all([
-    readIndex(),
+    readIndexAdmin(),
     readSiteSettings(),
   ]);
 

@@ -60,7 +60,7 @@ export default function ArticleForm({ article }: { article?: Article }) {
           <input type="hidden" name="id" value={isEdit ? article?.id : ""} />
 
           {/* Métadonnées de base */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <label className="form-control">
               <span className="label">
                 <span className="label-text">Slug</span>
@@ -106,6 +106,21 @@ export default function ArticleForm({ article }: { article?: Article }) {
                 className="input input-bordered w-full"
               />
             </label>
+
+            <label className="form-control">
+              <span className="label">
+                <span className="label-text">Date</span>
+                <span className="label-text-alt text-base-content/60">
+                  YYYY-MM-DD
+                </span>
+              </span>
+              <input
+                type="date"
+                name="date"
+                defaultValue={article?.date ?? ""}
+                className="input input-bordered w-full"
+              />
+            </label>
           </div>
 
           {/* Aperçu + Upload image */}
@@ -121,9 +136,6 @@ export default function ArticleForm({ article }: { article?: Article }) {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
-            <div className="sm:pt-8">
-              {!isEdit && <Preview alt="Aperçu couverture" />}
-            </div>
             <label className="form-control">
               <span className="label">
                 <span className="label-text">Image de couverture</span>

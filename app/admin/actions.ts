@@ -80,7 +80,7 @@ async function safeUnlink(p: string) {
 /**
  * Ajout / édition d’un article (image facultative)
  * Fields attendus :
- * - slug, title, author, htmlContent, date? (YYYY-MM-DD ou ISO)
+ * - slug, title, author, htmlContent, date? (YYYY-MM-DD, DD/MM/YYYY ou ISO)
  * - image? (File), imageAlt?, catchphrase?
  * - id? (pour édition)
  */
@@ -102,11 +102,34 @@ export async function saveArticle(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const author = String(formData.get("author") ?? "").trim();
   const htmlInput = String(formData.get("htmlContent") ?? "");
-  const dateInput = String(formData.get("date") ?? "");
-  const dateIso =
-    dateInput && /^\d{4}-\d{2}-\d{2}/.test(dateInput)
-      ? new Date(dateInput).toISOString()
-      : new Date().toISOString();
+
+  // --- DATE: parsing robuste + comportement création/édition ---
+  const dateInputRaw = String(formData.get("date") ?? "").trim();
+
+  const toISO = (input: string, fallback?: string) => {
+    if (!input) return fallback ?? new Date().toISOString();
+
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+      return new Date(`${input}T00:00:00.000Z`).toISOString();
+    }
+    // DD/MM/YYYY
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(input)) {
+      const [d, m, y] = input.split("/");
+      return new Date(`${y}-${m}-${d}T00:00:00.000Z`).toISOString();
+    }
+    // ISO complet ou autre chaîne parseable par Date
+    const t = Date.parse(input);
+    if (!Number.isNaN(t)) return new Date(t).toISOString();
+
+    // fallback si parsing impossible
+    return fallback ?? new Date().toISOString();
+  };
+
+  // En création: si rien fourni -> now ; en édition: si rien fourni -> conserver l'ancienne date
+  const dateIso = toISO(dateInputRaw, oldArticle?.date);
+  // --- fin date ---
+
   const imageAlt = String(formData.get("imageAlt") ?? "").trim();
   const catchphrase = String(formData.get("catchphrase") ?? "").trim();
   const articleId = providedId || uuidv4();
@@ -132,7 +155,7 @@ export async function saveArticle(formData: FormData) {
 
     fileName = `${slug}.${ext}`;
     const diskPath = path.join(imgDir, fileName);
-    const buf = Buffer.from(await providedImage.arrayBuffer());
+    const buf = Buffer.from(await (providedImage as File).arrayBuffer());
 
     await atomicWrite(diskPath, buf, 0o644);
 
@@ -154,7 +177,7 @@ export async function saveArticle(formData: FormData) {
 
   // Index
   const updated: PostIndexEntry = {
-    id: articleId, // ⬅️ conserve l’ID (pas de nouveau v4 à chaque édition)
+    id: articleId, // conserve l’ID (pas de nouveau v4 à chaque édition)
     slug,
     title,
     author,
