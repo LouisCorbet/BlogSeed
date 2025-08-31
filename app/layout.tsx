@@ -1,10 +1,17 @@
 // app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { readSiteSettings } from "@/lib/siteSettings";
+import GAReporter from "./components/GAReporter";
+import { GA_MEASUREMENT_ID } from "@/lib/gtag";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -44,14 +51,6 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: "fr_FR",
     },
 
-    // twitter: {
-    //   card: "summary_large_image",
-    //   title: s.name,
-    //   description: s.tagline,
-    //   images: [abs(s.defaultOg)],
-    //   site: s.twitter, // ex: "@monsite"
-    // },
-
     robots: {
       index: true,
       follow: true,
@@ -69,6 +68,7 @@ export default async function RootLayout({
 }) {
   const s = await readSiteSettings();
   const theme = s.theme ?? "light";
+
   return (
     <html lang="fr" data-theme={theme}>
       <body
@@ -77,6 +77,26 @@ export default async function RootLayout({
         <Header />
         <main className="flex-1 bg-base-200">{children}</main>
         <Footer />
+
+        {/* Google Analytics 4 */}
+        {process.env.NODE_ENV === "production" && GA_MEASUREMENT_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                // pas de page_view auto : géré par GAReporter (SPA)
+                gtag('config', '${GA_MEASUREMENT_ID}', { send_page_view: false });
+              `}
+            </Script>
+            <GAReporter />
+          </>
+        )}
       </body>
     </html>
   );
