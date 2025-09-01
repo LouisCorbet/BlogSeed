@@ -65,27 +65,19 @@ export default function ConsentBannerHybrid({
     right: 0,
     bottom: 0,
     zIndex: 99999,
-    // marge intérieure générale + respect du safe-area iOS
     padding: "16px",
     paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
   };
 
-  const card: React.CSSProperties = {
-    maxWidth: "72rem", // ≈ 1152px pour mieux “respirer”
+  const cardLayout: React.CSSProperties = {
+    maxWidth: "72rem",
     margin: "0 auto",
-    // padding interne généreux
     padding: "18px 20px",
-    // layout
     display: "flex",
     flexWrap: "wrap",
     gap: 16,
     alignItems: "center",
     justifyContent: "space-between",
-    // look & feel
-    background: "var(--b1, #fff)",
-    border: "1px solid rgba(0,0,0,0.12)",
-    borderRadius: 14,
-    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
   };
 
   const textBox: React.CSSProperties = {
@@ -95,10 +87,10 @@ export default function ConsentBannerHybrid({
 
   const actions: React.CSSProperties = {
     display: "flex",
-    justifyContent: "space-around",
-    width: "100%",
     gap: 10,
     flex: "0 0 auto",
+    width: "100%",
+    justifyContent: "space-around",
   };
 
   return (
@@ -110,16 +102,16 @@ export default function ConsentBannerHybrid({
       ref={barRef}
     >
       <div
-        className="bg-base-100 border border-base-300 rounded-box shadow-lg"
-        style={card}
+        className="bg-base-100 text-base-content border border-base-300 rounded-box shadow-2xl"
+        style={cardLayout}
       >
         <p
-          className="m-0 text-[0.95rem] leading-relaxed text-base-content/80"
+          className="m-0 text-sm sm:text-[0.95rem] leading-relaxed opacity-90"
           style={textBox}
         >
-          Nous utilisons des cookies pour mesurer l&apos;audience et afficher
-          des annonces personnalisées. Vous pouvez accepter ou refuser.
-          {/* <Link
+          Nous utilisons des cookies pour mesurer l’audience et afficher des
+          annonces personnalisées. Vous pouvez accepter ou refuser.{" "}
+          <Link
             href={privacyUrl}
             className="link link-hover font-medium"
             prefetch={false}
@@ -128,18 +120,17 @@ export default function ConsentBannerHybrid({
           >
             En savoir plus
           </Link>
-          . */}
+          .
         </p>
 
-        <div style={actions}>
-          <button type="button" className="btn btn-sm btn-ghost">
-            <span onClick={deny}>Tout refuser</span>
+        <div style={actions} className="sm:w-auto sm:justify-end">
+          <button type="button" className="btn btn-sm btn-ghost" onClick={deny}>
+            Tout refuser
           </button>
           <button
             type="button"
             onClick={grant}
             className="btn btn-sm btn-primary"
-            // un peu plus d’air vertical sur mobile
             style={{ paddingInline: 16, paddingBlock: 10 }}
             autoFocus
           >
