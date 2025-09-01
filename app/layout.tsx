@@ -7,7 +7,6 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { readSiteSettings } from "@/lib/siteSettings";
 import GAReporter from "./components/GAReporter";
-import { GA_MEASUREMENT_ID } from "@/lib/gtag";
 import ConsentBanner from "./components/ConsentBanner";
 
 export const runtime = "nodejs";
@@ -62,6 +61,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 const ADS_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT || "";
+const GA_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
+  process.env.GA_MEASUREMENT_ID || // au cas où tu utilises un autre nom
+  "";
 
 export default async function RootLayout({
   children,
@@ -70,13 +73,14 @@ export default async function RootLayout({
 }) {
   const s = await readSiteSettings();
   const theme = s.theme ?? "light";
+  console.log("okok : ", GA_ID);
 
   return (
     <html lang="fr" data-theme={theme}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
       >
-        {/* Consent Mode par défaut (bloqué) */}
+        {/* Consent Mode par défaut (doit être AVANT gtag.js et dans <head> idéalement) */}
         <Script id="consent-default" strategy="beforeInteractive">
           {`
             window.dataLayer = window.dataLayer || [];
@@ -89,32 +93,36 @@ export default async function RootLayout({
             });
           `}
         </Script>
-        <Header />
 
-        <ConsentBanner />
-        <main className="flex-1 bg-base-200">{children}</main>
-        <Footer />
-
-        {/* Google Analytics 4 */}
-        {process.env.NODE_ENV === "production" && GA_MEASUREMENT_ID && (
+        {/* --- Google Analytics (dans le HEAD) --- */}
+        {process.env.NODE_ENV === "production" && GA_ID && (
           <>
             <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-              strategy="afterInteractive"
+              id="gtag-lib"
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="beforeInteractive" // <- injecté dans le head
             />
-            <Script id="ga-init" strategy="afterInteractive">
+            <Script id="ga-init" strategy="beforeInteractive">
               {`
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                // pas de page_view auto : géré par GAReporter (SPA)
-                gtag('config', '${GA_MEASUREMENT_ID}', { send_page_view: false });
+                // pas de page_view auto : on laisse GAReporter/routeur gérer
+                gtag('config', '${GA_ID}', { send_page_view: false });
               `}
             </Script>
-            <GAReporter />
           </>
         )}
-        {/* Google AdSense */}
+
+        <Header />
+        <ConsentBanner />
+        <main className="flex-1 bg-base-200">{children}</main>
+        <Footer />
+
+        {/* GAReporter peut rester tel quel (il n'a pas besoin de l'ID) */}
+        {process.env.NODE_ENV === "production" && GA_ID && <GAReporter />}
+
+        {/* AdSense inchangé */}
         {process.env.NODE_ENV === "production" && ADS_CLIENT && (
           <Script
             id="adsense"
