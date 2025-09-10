@@ -347,3 +347,87 @@ export async function deleteArticle(formData: FormData) {
   revalidatePath("/articles");
   revalidatePath(`/articles/${slug}`);
 }
+
+/**
+ * Ajout / édition d’un article (image facultative)
+ * Fields attendus :
+ * - slug, title, author, htmlContent, date? (YYYY-MM-DD, DD/MM/YYYY ou ISO)
+ * - image? (File), imageAlt?, catchphrase?
+ * - id? (pour édition)
+ */
+export async function saveArticleAuto() {
+  await ensureDirs();
+
+  const index = await readIndexSafe();
+
+  const title = "TEST TITLE";
+  const author = "Louis";
+  const htmlInput = "<p>Test content</p>";
+  const imageAlt = "Image Alt text here";
+  const catchphrase = "Catchphrase goes here";
+
+  const slug = `${sanitizeSlug(title)}-${Date.now()}`;
+
+  // --- DATE: parsing robuste + comportement création/édition ---
+  const dateInputRaw = new Date().toISOString();
+
+  const articleId = uuidv4();
+
+  // Image
+  const providedImage = formData.get("image");
+  let fileName = "";
+  if (providedImage instanceof File && providedImage.size > 0) {
+    const mime = providedImage.type;
+    const ext =
+      MIME_TO_EXT[mime] ||
+      path.extname(providedImage.name).replace(".", "").toLowerCase();
+    if (!ext)
+      throw new Error(`Type d'image non pris en charge: ${mime || "inconnu"}`);
+    if (providedImage.size > 8 * 1024 * 1024)
+      throw new Error("Image trop lourde (max 8 Mo).");
+
+    // si le slug change, supprime l’ancienne image via son chemin connu (robuste si l’extension a changé)
+    if (oldArticle?.imgPath && slug !== oldArticle.slug) {
+      const oldBasename = path.basename(oldArticle.imgPath); // ex: slug-123.webp
+      await safeUnlink(path.join(imgDir, oldBasename));
+    }
+
+    fileName = `${slug}.${ext}`;
+    const diskPath = path.join(imgDir, fileName);
+    const buf = Buffer.from(await (providedImage as File).arrayBuffer());
+
+    await atomicWrite(diskPath, buf, 0o644);
+
+    // pas indispensable si ta route /images est dynamic+revalidate=0, mais OK
+    revalidatePath(`/images/${fileName}`);
+  } else if (!providedId) {
+    // création sans image
+    throw new Error("Image manquante");
+  }
+
+  // HTML
+  const htmlPath = path.join(htmlDir, `${slug}.html`);
+  await atomicWrite(htmlPath, htmlInput, 0o644);
+
+  // Index
+  const updated: PostIndexEntry = {
+    id: articleId, // conserve l’ID (pas de nouveau v4 à chaque édition)
+    slug,
+    title,
+    author,
+    date: dateInputRaw,
+    imgPath: `/images/${fileName}`,
+    imageAlt,
+    catchphrase,
+  };
+
+  const rest = index.filter((p) => p.id !== articleId);
+  rest.push(updated);
+  await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
+
+  // Revalidation ISR (si tu as des pages SSG/ISR)
+  revalidatePath("/", "layout");
+  revalidatePath("/");
+  revalidatePath("/articles");
+  revalidatePath(`/articles/${slug}`);
+}
