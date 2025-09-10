@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "5mb" },
   },
   images: {
-    unoptimized: true, // ⬅️ plus d’appel à /_next/image
+    unoptimized: false, // ⬅️ plus d’appel à /_next/image
   },
   poweredByHeader: false, // petit hardening prod
 };

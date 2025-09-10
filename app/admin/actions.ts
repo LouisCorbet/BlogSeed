@@ -39,12 +39,22 @@ const MIME_TO_EXT: Record<string, string> = {
 };
 
 function sanitizeSlug(input: string) {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/--+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return (
+    input
+      .toLowerCase()
+      // Décompose accents + certaines ligatures (compat) puis retire les diacritiques
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "") // enlève les marques d’accent
+      // Ligatures/symboles courants qui ne sont pas toujours couverts par NFKD selon l’environnement
+      .replace(/œ/g, "oe")
+      .replace(/æ/g, "ae")
+      .replace(/ß/g, "ss")
+      // Remplace toute séquence non alphanumérique par un tiret
+      .replace(/[^a-z0-9]+/g, "-")
+      // Trim des tirets au début/fin + dé-doublonnage
+      .replace(/^-+|-+$/g, "")
+      .replace(/--+/g, "-")
+  );
 }
 
 async function ensureDirs() {
@@ -93,13 +103,10 @@ export async function saveArticle(formData: FormData) {
     ? index.find((p) => p.id === providedId)
     : undefined;
 
-  // slug
-  const baseSlug = String(formData.get("slug") ?? "");
-  const slug = providedId
-    ? baseSlug // édition: on prend ce qui est fourni (tu peux forcer sanitize si tu veux)
-    : `${sanitizeSlug(baseSlug)}-${Date.now()}`;
-
   const title = String(formData.get("title") ?? "").trim();
+  // slug
+  // const baseSlug = String(formData.get("slug") ?? "");
+  const slug = `${sanitizeSlug(title)}-${Date.now()}`;
   const author = String(formData.get("author") ?? "").trim();
   const htmlInput = String(formData.get("htmlContent") ?? "");
 

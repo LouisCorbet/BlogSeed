@@ -114,6 +114,7 @@ export default function ArticleForm({ article }: { article?: Article }) {
 
             {/* Métadonnées */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              {/*
               <label className="form-control">
                 <span className="label">
                   <span className="label-text">Slug</span>
@@ -132,6 +133,7 @@ export default function ArticleForm({ article }: { article?: Article }) {
                   className="input input-bordered w-full"
                 />
               </label>
+                  */}
 
               <label className="form-control">
                 <span className="label">
