@@ -3,6 +3,7 @@ import ArticlesTable from "../components/ArticlesTable";
 import ArticleForm from "../components/ArticleForm";
 import SiteSettingsForm from "../components/SiteSettingsForm";
 import { readSiteSettings } from "@/lib/siteSettings";
+import TestButton from "../components/TestButton";
 export const metadata = {
   robots: { index: false, follow: false, nocache: true },
 };
@@ -47,6 +48,7 @@ export default async function AdminPage({
                   </span>
                 )}
               </p>
+              <TestButton />
             </div>
           </div>
         </div>

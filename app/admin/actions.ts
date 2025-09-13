@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import fs from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+// ==== AJOUTS UTILES EN HAUT DE FICHIER ====
+// import path from "path";                    // probable déjà importé
+import sharp from "sharp"; // `npm i sharp` (côté serveur)
+// import { v4 as uuidv4 } from "uuid";        // déjà importé chez toi
 
 import {
   DaisyThemes,
@@ -348,6 +352,101 @@ export async function deleteArticle(formData: FormData) {
   revalidatePath(`/articles/${slug}`);
 }
 
+const HORDE_KEY = process.env.HORDE_API_KEY || ""; // facultatif (anonyme = plus lent)
+const CLIENT_AGENT = "your-app-name/1.0 (mailto:you@example.com)"; // recommandé par Horde
+async function generateWithHorde(
+  prompt: string,
+  width = 1024,
+  height = 1024,
+  retries = 40
+) {
+  const submitRes = await fetch(
+    `https://stablehorde.net/api/v2/generate/async`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "Client-Agent": CLIENT_AGENT,
+        apikey: HORDE_KEY,
+      },
+      body: JSON.stringify({
+        prompt,
+        params: {
+          width,
+          height,
+          steps: 28,
+          cfg_scale: 6.5,
+          sampler_name: "k_euler",
+          karras: true,
+          // ← le plus important pour éviter le texte
+          negative_prompt:
+            "text, letters, words, caption, watermark, logo, signature, typography, title, numbers, digits, ui, overlay, meme, frames, borders, jpeg artifacts",
+          n: 1,
+        },
+        // Évite "flux" (le negative n’est pas pris en compte)
+        models: ["SDXL"],
+        nsfw: false,
+      }),
+    }
+  );
+
+  if (submitRes.status !== 202)
+    throw new Error(
+      `Horde submit failed: ${submitRes.status} ${await submitRes.text()}`
+    );
+  const { id } = await submitRes.json();
+
+  for (let i = 0; i < retries; i++) {
+    await new Promise((r) => setTimeout(r, 4000));
+    const statusRes = await fetch(
+      `https://stablehorde.net/api/v2/generate/status/${id}`,
+      {
+        headers: { "Client-Agent": CLIENT_AGENT, apikey: HORDE_KEY },
+        cache: "no-store",
+      }
+    );
+    const data = await statusRes.json();
+    if (data?.done && data?.generations?.length) {
+      const g = data.generations[0];
+      if (typeof g.img === "string" && g.img.startsWith("data:")) {
+        return Buffer.from(g.img.split(",")[1] || g.img, "base64");
+      } else if (typeof g.img === "string") {
+        const r = await fetch(g.img);
+        if (!r.ok) throw new Error(`Horde CDN fetch failed: ${r.status}`);
+        return Buffer.from(await r.arrayBuffer());
+      }
+    }
+  }
+  throw new Error("Horde timeout/no image");
+}
+
+async function fetchPollinationsImage(prompt: string, w = 1024, h = 1024) {
+  // Même prompt visuel + “no text”
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(
+    prompt
+  )}?width=${w}&height=${h}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Pollinations failed: ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+async function saveAsWebp(buffer: Buffer, diskPath: string, quality = 78) {
+  const webp = await sharp(buffer).webp({ quality }).toBuffer();
+  await atomicWrite(diskPath, webp, 0o644);
+}
+
+function buildImagePrompt(title: string, catchphrase?: string) {
+  return [
+    // // Sujet -> éléments visuels, pas de texte
+    // `Colorful realistic picture about: ${title}`,
+    // `minimalist interior, clean room, center composition, 1:1, clean lighting`,
+    // `high contrast, eye-catching, no text, no letters, no logo`,
+    // // un style “safe” pour vignettes
+    // `vector-like aesthetic, modern editorial hero image, crisp edges`,
+    `fais une image type photo réaliste, montrant une personne heureuse dans une pièce bien rangée, relativement au sujet suivant : ${title}`,
+  ].join(", ");
+}
+
 /**
  * Ajout / édition d’un article (image facultative)
  * Fields attendus :
@@ -360,72 +459,88 @@ export async function saveArticleAuto() {
 
   const index = await readIndexSafe();
 
-  const title = "TEST TITLE";
+  const title = "Comment organiser sa salle de bains ?";
   const author = "Louis";
   const htmlInput = "<p>Test content</p>";
   const imageAlt = "Image Alt text here";
   const catchphrase = "Catchphrase goes here";
 
   const slug = `${sanitizeSlug(title)}-${Date.now()}`;
-
-  // --- DATE: parsing robuste + comportement création/édition ---
   const dateInputRaw = new Date().toISOString();
-
   const articleId = uuidv4();
 
-  // Image
-  const providedImage = formData.get("image");
-  let fileName = "";
-  if (providedImage instanceof File && providedImage.size > 0) {
-    const mime = providedImage.type;
-    const ext =
-      MIME_TO_EXT[mime] ||
-      path.extname(providedImage.name).replace(".", "").toLowerCase();
-    if (!ext)
-      throw new Error(`Type d'image non pris en charge: ${mime || "inconnu"}`);
-    if (providedImage.size > 8 * 1024 * 1024)
-      throw new Error("Image trop lourde (max 8 Mo).");
+  // === 1) Génération de l'image (serveur) ===
+  const prompt = buildImagePrompt(title, catchphrase);
 
-    // si le slug change, supprime l’ancienne image via son chemin connu (robuste si l’extension a changé)
-    if (oldArticle?.imgPath && slug !== oldArticle.slug) {
-      const oldBasename = path.basename(oldArticle.imgPath); // ex: slug-123.webp
-      await safeUnlink(path.join(imgDir, oldBasename));
+  const fileName = `${slug}.webp`;
+  const diskPath = path.join(imgDir, fileName);
+
+  let imgBuffer: Buffer | null = null;
+  try {
+    // d'abord Horde (qualité/contrôle)
+    imgBuffer = await generateWithHorde(prompt, 1024, 1024);
+  } catch (e) {
+    console.warn(
+      "[saveArticleAuto] Horde failed, fallback Pollinations:",
+      (e as Error)?.message
+    );
+    try {
+      // fallback ultra simple
+      imgBuffer = await fetchPollinationsImage(prompt, 1024, 1024);
+    } catch (e2) {
+      console.error(
+        "[saveArticleAuto] Pollinations also failed:",
+        (e2 as Error)?.message
+      );
+      // en dernier recours: image placeholder unie
+      const placeholder = await sharp({
+        create: {
+          width: 1024,
+          height: 1024,
+          channels: 3,
+          background: "#eaeaea",
+        },
+      })
+        .png()
+        .toBuffer();
+      imgBuffer = placeholder;
     }
-
-    fileName = `${slug}.${ext}`;
-    const diskPath = path.join(imgDir, fileName);
-    const buf = Buffer.from(await (providedImage as File).arrayBuffer());
-
-    await atomicWrite(diskPath, buf, 0o644);
-
-    // pas indispensable si ta route /images est dynamic+revalidate=0, mais OK
-    revalidatePath(`/images/${fileName}`);
-  } else if (!providedId) {
-    // création sans image
-    throw new Error("Image manquante");
   }
 
-  // HTML
+  // === 2) Convertir en WebP & sauver ===
+  await saveAsWebp(imgBuffer!, diskPath, 78);
+  // (optionnel) miniature 512px
+  const thumbName = `${slug}-512.webp`;
+  const thumbPath = path.join(imgDir, thumbName);
+  const thumbWebp = await sharp(imgBuffer!)
+    .resize(512, 512, { fit: "cover" })
+    .webp({ quality: 76 })
+    .toBuffer();
+  await atomicWrite(thumbPath, thumbWebp, 0o644);
+
+  // === 3) Écrire le HTML ===
   const htmlPath = path.join(htmlDir, `${slug}.html`);
   await atomicWrite(htmlPath, htmlInput, 0o644);
 
-  // Index
+  // === 4) MAJ index ===
   const updated: PostIndexEntry = {
-    id: articleId, // conserve l’ID (pas de nouveau v4 à chaque édition)
+    id: articleId,
     slug,
     title,
     author,
     date: dateInputRaw,
-    imgPath: `/images/${fileName}`,
+    imgPath: `/images/${fileName}`, // <- image principale
     imageAlt,
     catchphrase,
+    // (optionnel) thumbPath si ton front l’utilise :
+    // thumbPath: `/images/${thumbName}`,
   };
 
   const rest = index.filter((p) => p.id !== articleId);
   rest.push(updated);
   await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
 
-  // Revalidation ISR (si tu as des pages SSG/ISR)
+  // === 5) Revalidate ISR ===
   revalidatePath("/", "layout");
   revalidatePath("/");
   revalidatePath("/articles");

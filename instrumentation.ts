@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // instrumentation.ts (à la racine du repo)
-import { twiceDailyJob } from "./lib/jobs";
+import { saveArticleAuto } from "./app/admin/actions";
 
 export async function register() {
   // Ne rien faire côté Edge/middleware
@@ -11,10 +11,9 @@ export async function register() {
   if (g.__CRON_STARTED__) return;
   g.__CRON_STARTED__ = true;
 
-  // Lancer tout de suite puis toutes les 12h
-  twiceDailyJob().catch(console.error);
-  const TWELVE_HOURS = 5000;
+  const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+
   setInterval(() => {
-    twiceDailyJob().catch(console.error);
+    saveArticleAuto().catch(console.error);
   }, TWELVE_HOURS);
 }
