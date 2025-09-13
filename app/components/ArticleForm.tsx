@@ -103,7 +103,7 @@ export default function ArticleForm({ article }: { article?: Article }) {
 
             {isEdit && (
               <a href="/admin" className="btn btn-ghost btn-sm self-start">
-                Annuler
+                Quitter la modification
               </a>
             )}
           </div>

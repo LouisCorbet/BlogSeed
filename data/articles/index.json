@@ -100,16 +100,6 @@
     "catchphrase": "Catchphrase goes here"
   },
   {
-    "id": "5a6a7e6a-f01d-4a64-9002-3316b7b63dc7",
-    "slug": "test-title-1757588798319",
-    "title": "TEST TITLE",
-    "author": "Louis",
-    "date": "2025-09-11T11:06:38.319Z",
-    "imgPath": "/images/test-title-1757588798319.webp",
-    "imageAlt": "Image Alt text here",
-    "catchphrase": "Catchphrase goes here"
-  },
-  {
     "id": "e5946cff-0006-401e-880b-7a1a1847bd0f",
     "slug": "test-title-1757588927624",
     "title": "TEST TITLE",

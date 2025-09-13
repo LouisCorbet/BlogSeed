@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -10,6 +11,7 @@ import sharp from "sharp"; // `npm i sharp` (côté serveur)
 // import { v4 as uuidv4 } from "uuid";        // déjà importé chez toi
 
 import {
+  AutoPublishSchedule,
   DaisyThemes,
   readSiteSettings,
   writeSiteSettings,
@@ -447,37 +449,148 @@ function buildImagePrompt(title: string, catchphrase?: string) {
   ].join(", ");
 }
 
-/**
- * Ajout / édition d’un article (image facultative)
- * Fields attendus :
- * - slug, title, author, htmlContent, date? (YYYY-MM-DD, DD/MM/YYYY ou ISO)
- * - image? (File), imageAlt?, catchphrase?
- * - id? (pour édition)
- */
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// ---- imports probables en haut du fichier ----
+// import path from "path";
+// import sharp from "sharp";
+// import { v4 as uuidv4 } from "uuid";
+// import { revalidatePath } from "next/cache";
+// + tes utilitaires: ensureDirs, readIndexSafe, atomicWrite, safeUnlink, sanitizeSlug, imgDir, htmlDir, indexFile, etc.
+
+const HORDE_BASE = "https://stablehorde.net/api/v2";
+const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY!;
+const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
+const MISTRAL_MODEL = process.env.MISTRAL_MODEL || "mistral-large-latest"; // ou "open-mistral-nemo"
+
+async function askMistralForArticle(): Promise<{
+  title: string;
+  htmlInput: string;
+  imageAlt: string;
+  catchphrase: string;
+  // facultatif si tu veux piloter l'image finement
+  imagePrompt?: string;
+}> {
+  const system = `Tu es un rédacteur web FR. Tu renvoies STRICTEMENT un JSON valide avec les clés:
+- "title": titre accrocheur (max ~70 caractères)
+- "catchphrase": une courte accroche (max ~120 caractères)
+- "htmlInput": contenu HTML propre (paragraphes <p>, listes, sous-titres <h2>… — pas de <html> ni <body>)
+- "imagePrompt": une description VISUELLE (sans texte/lettres) pour guider une illustration carrée.
+- "imageAlt": texte alternatif concis et descriptif pour l'image (sans mots comme "image de")
+
+Exigences:
+- Langue: FR
+- Sujet: utile, concret, intemporel (conseils pratiques), optimisé SEO
+- Ton: clair, concis, pédagogique
+- HTML: sémantique simple (<h2>, <p>, <ul>), utilisation de tailwind et daisyUI autant que possible
+- PAS de Markdown.`;
+
+  // Tu peux personnaliser ce "brief" pour orienter la thématique générale de l’article du jour
+  const user = `Génère un article de blog (600–900 mots) original sur le thème du minimalisme.
+Inclure 3–5 sous-parties (<h2>) et une bonne variété de composants daisyUI pour une mise en page attrayante. Inutile d'inclure le titre dans le HTML. à la fin de l'article, inclure une FAQ de 3 à 5 questions-réponses que les utilisateurs pourraient avoir tapé directement dans google.
+Optimise l'article pour le SEO, en particulier la partie FAQ avec des questions pertinentes et un script JSON-LD FAQPage (ajouté automatiquement côté front).
+Donne un "imagePrompt" purement VISUEL (scène/ambiance/objets), en évitant tout texte/lettres/logos dans l'image.`;
+
+  const res = await fetch(MISTRAL_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${MISTRAL_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MISTRAL_MODEL,
+      // Mistral supporte le format "json_object" (équivalent OpenAI)
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    }),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Mistral API error: ${res.status} ${t}`);
+  }
+
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Mistral: empty content");
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    // fallback: essaie d’extraire un JSON brut
+    const match = content.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Mistral: JSON missing");
+    parsed = JSON.parse(match[0]);
+  }
+
+  const title = (parsed.title || "").toString().trim();
+  const htmlInput = (parsed.htmlInput || "").toString().trim();
+  const imageAlt = (parsed.imageAlt || "").toString().trim();
+  const catchphrase = (parsed.catchphrase || "").toString().trim();
+  const imagePrompt = (parsed.imagePrompt || "").toString().trim();
+
+  if (!title || !htmlInput || !imageAlt || !catchphrase) {
+    throw new Error("Mistral JSON missing required keys");
+  }
+  return { title, htmlInput, imageAlt, catchphrase, imagePrompt };
+}
+
+function buildImagePromptFromText({
+  title,
+  catchphrase,
+  imagePrompt,
+}: {
+  title: string;
+  catchphrase?: string;
+  imagePrompt?: string;
+}) {
+  // Priorité au "imagePrompt" fourni par Mistral s'il existe.
+  if (imagePrompt && imagePrompt.length > 10) {
+    return [
+      imagePrompt,
+      "square 1:1, minimal, colorful, center composition, clean lighting, vector-like aesthetic, high contrast, no text, no letters, no logo",
+    ].join(", ");
+  }
+  // Sinon, fallback visuel dérivé du titre/accroche
+  return [
+    `Colorful minimal abstract illustration about: ${title}`,
+    catchphrase ? `theme hints: ${catchphrase}` : "",
+    "flat shapes, soft gradient background, square 1:1, center composition, crisp edges, high contrast, modern editorial hero, no text, no letters, no logo",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+// ------------------------------ Fonction principale ------------------------------
+
 export async function saveArticleAuto() {
   await ensureDirs();
 
   const index = await readIndexSafe();
 
-  const title = "Comment organiser sa salle de bains ?";
-  const author = "Louis";
-  const htmlInput = "<p>Test content</p>";
-  const imageAlt = "Image Alt text here";
-  const catchphrase = "Catchphrase goes here";
+  // (1) --- Récupérer l’article depuis Mistral ---
+  const { title, htmlInput, imageAlt, catchphrase, imagePrompt } =
+    await askMistralForArticle();
 
   const slug = `${sanitizeSlug(title)}-${Date.now()}`;
   const dateInputRaw = new Date().toISOString();
   const articleId = uuidv4();
 
-  // === 1) Génération de l'image (serveur) ===
-  const prompt = buildImagePrompt(title, catchphrase);
+  // (2) --- Générer l’image (Horde -> Pollinations -> placeholder) ---
+  const prompt = buildImagePromptFromText({ title, catchphrase, imagePrompt });
 
   const fileName = `${slug}.webp`;
   const diskPath = path.join(imgDir, fileName);
 
   let imgBuffer: Buffer | null = null;
   try {
-    // d'abord Horde (qualité/contrôle)
     imgBuffer = await generateWithHorde(prompt, 1024, 1024);
   } catch (e) {
     console.warn(
@@ -485,14 +598,12 @@ export async function saveArticleAuto() {
       (e as Error)?.message
     );
     try {
-      // fallback ultra simple
       imgBuffer = await fetchPollinationsImage(prompt, 1024, 1024);
     } catch (e2) {
       console.error(
         "[saveArticleAuto] Pollinations also failed:",
         (e2 as Error)?.message
       );
-      // en dernier recours: image placeholder unie
       const placeholder = await sharp({
         create: {
           width: 1024,
@@ -507,8 +618,8 @@ export async function saveArticleAuto() {
     }
   }
 
-  // === 2) Convertir en WebP & sauver ===
   await saveAsWebp(imgBuffer!, diskPath, 78);
+
   // (optionnel) miniature 512px
   const thumbName = `${slug}-512.webp`;
   const thumbPath = path.join(imgDir, thumbName);
@@ -518,31 +629,94 @@ export async function saveArticleAuto() {
     .toBuffer();
   await atomicWrite(thumbPath, thumbWebp, 0o644);
 
-  // === 3) Écrire le HTML ===
+  // (3) --- Écrire le HTML ---
   const htmlPath = path.join(htmlDir, `${slug}.html`);
   await atomicWrite(htmlPath, htmlInput, 0o644);
 
-  // === 4) MAJ index ===
+  // (4) --- MAJ index ---
   const updated: PostIndexEntry = {
     id: articleId,
     slug,
     title,
-    author,
+    author: "Louis",
     date: dateInputRaw,
-    imgPath: `/images/${fileName}`, // <- image principale
+    imgPath: `/images/${fileName}`,
     imageAlt,
     catchphrase,
-    // (optionnel) thumbPath si ton front l’utilise :
-    // thumbPath: `/images/${thumbName}`,
+    // thumbPath: `/images/${thumbName}`, // si utilisé côté front
   };
 
   const rest = index.filter((p) => p.id !== articleId);
   rest.push(updated);
   await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
 
-  // === 5) Revalidate ISR ===
+  // (5) --- Revalidate ISR ---
   revalidatePath("/", "layout");
   revalidatePath("/");
   revalidatePath("/articles");
   revalidatePath(`/articles/${slug}`);
+}
+
+function parseDayTimes(s: FormDataEntryValue | null): string[] {
+  if (!s) return [];
+  const raw = String(s).trim();
+  if (!raw) return [];
+  // "08:00, 14:30 ; 19:05" -> ["08:00","14:30","19:05"], filtrées/validées HH:mm
+  return raw
+    .split(/[;,]/g)
+    .map((x) => x.trim())
+    .filter((x) => /^[0-2]\d:[0-5]\d$/.test(x))
+    .map((x) => {
+      // normalisation 24h strict (00-23:00-59)
+      const [hh, mm] = x.split(":").map(Number);
+      const H = Math.min(Math.max(hh, 0), 23);
+      const M = Math.min(Math.max(mm, 0), 59);
+      return `${String(H).padStart(2, "0")}:${String(M).padStart(2, "0")}`;
+    });
+}
+
+export async function saveAutoPublishSettings(formData: FormData) {
+  const current = await readSiteSettings();
+
+  const sched: AutoPublishSchedule = {
+    monday: parseDayTimes(formData.get("times_monday")),
+    tuesday: parseDayTimes(formData.get("times_tuesday")),
+    wednesday: parseDayTimes(formData.get("times_wednesday")),
+    thursday: parseDayTimes(formData.get("times_thursday")),
+    friday: parseDayTimes(formData.get("times_friday")),
+    saturday: parseDayTimes(formData.get("times_saturday")),
+    sunday: parseDayTimes(formData.get("times_sunday")),
+  };
+
+  const next = {
+    ...current,
+    autoPublishEnabled: formData.get("autoPublishEnabled") === "on",
+    autoPublishPrompt: String(formData.get("autoPublishPrompt") || ""),
+    autoPublishModel: String(
+      formData.get("autoPublishModel") || "mistral-large-latest"
+    ),
+    autoPublishAuthor: String(
+      formData.get("autoPublishAuthor") || "Rédaction auto"
+    ),
+    autoPublishSchedule: sched,
+  };
+
+  await writeSiteSettings(next);
+  revalidatePath("/admin");
+}
+
+export async function publishAutoNow() {
+  await saveArticleAuto();
+  revalidatePath("/");
+  revalidatePath("/articles");
+  revalidatePath("/admin");
+}
+
+export async function toggleAutoPublishDirect(enabled: boolean) {
+  const current = await readSiteSettings();
+  await writeSiteSettings({
+    ...current,
+    autoPublishEnabled: !!enabled,
+  });
+  revalidatePath("/admin");
 }

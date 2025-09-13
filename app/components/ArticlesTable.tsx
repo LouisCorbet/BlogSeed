@@ -36,6 +36,9 @@ export default function ArticlesTable({ articles }: { articles: Article[] }) {
     return isNaN(+dt) ? "—" : dt.toLocaleDateString();
   };
 
+  const editHref = (slug: string) =>
+    `/admin?edit=${encodeURIComponent(slug)}#edit`;
+
   return (
     <div className="card bg-base-100 shadow-sm">
       <div className="card-body">
@@ -100,9 +103,11 @@ export default function ArticlesTable({ articles }: { articles: Article[] }) {
                           Voir
                         </Link>
                         <Link
-                          href={`/admin?edit=${encodeURIComponent(
-                            a.slug
-                          )}#article-form`}
+                          href={editHref(a.slug)}
+                          onClick={() => {
+                            if (typeof window !== "undefined")
+                              window.location.hash = "#edit";
+                          }}
                           className="btn btn-xs col-span-1"
                           prefetch={false}
                           title="Modifier cet article"
@@ -174,9 +179,11 @@ export default function ArticlesTable({ articles }: { articles: Article[] }) {
                             Voir
                           </Link>
                           <Link
-                            href={`/admin?edit=${encodeURIComponent(
-                              a.slug
-                            )}#article-form`}
+                            href={editHref(a.slug)}
+                            onClick={() => {
+                              if (typeof window !== "undefined")
+                                window.location.hash = "#edit";
+                            }}
                             className="btn btn-xs"
                             prefetch={false}
                             title="Modifier cet article"
