@@ -73,7 +73,6 @@ export default async function RootLayout({
 }) {
   const s = await readSiteSettings();
   const theme = s.theme ?? "light";
-  console.log("okok : ", GA_ID);
 
   return (
     <html lang="fr" data-theme={theme}>

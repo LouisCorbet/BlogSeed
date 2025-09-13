@@ -42,6 +42,17 @@ export const DaisyThemes = [
   "silk",
 ] as const;
 export type DaisyTheme = (typeof DaisyThemes)[number];
+
+export type AutoPublishSchedule = {
+  monday?: string[]; // ["08:00","14:30"]
+  tuesday?: string[];
+  wednesday?: string[];
+  thursday?: string[];
+  friday?: string[];
+  saturday?: string[];
+  sunday?: string[];
+};
+
 export type SiteSettings = {
   name: string;
   url: string; // absolu (https://…)
@@ -57,6 +68,13 @@ export type SiteSettings = {
   about?: string; // description plus longue, optionnelle
   subTitle?: string; // sous-titre, optionnel
   theme: DaisyTheme; // thème, optionnel
+
+  autoPublishEnabled?: boolean; // on/off
+  autoPublishPrompt?: string; // prompt IA
+  autoPublishModel?: string; // modèle mistral
+  autoPublishAuthor?: string; // auteur par défaut
+  // NOUVEAU
+  autoPublishSchedule?: AutoPublishSchedule;
 };
 
 function getDefaultSettings(): SiteSettings {
@@ -74,6 +92,20 @@ function getDefaultSettings(): SiteSettings {
     favicon: "/favicon.ico",
     about: "",
     subTitle: "",
+    autoPublishEnabled: false,
+    autoPublishPrompt:
+      "Écris un article utile et intemporel sur le sujet de ton choix...",
+    autoPublishModel: "mistral-large-latest",
+    autoPublishAuthor: "Rédaction auto",
+    autoPublishSchedule: {
+      monday: [],
+      tuesday: [],
+      wednesday: [],
+      thursday: [],
+      friday: [],
+      saturday: [],
+      sunday: [],
+    },
   };
 }
 

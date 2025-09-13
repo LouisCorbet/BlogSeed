@@ -23,176 +23,107 @@ export default function SiteSettingsForm({
   );
 
   return (
-    <div className="card bg-base-100 shadow-sm">
-      <div className="card-body">
-        <h2 className="card-title">Paramètres du site</h2>
-        <p className="text-sm text-base-content/70">
-          Nom, URL, description… Ces infos alimentent vos <strong>metas</strong>{" "}
-          (SEO) et l’interface.
-        </p>
+    <div className=" bg-base-100 ">
+      <h2 className="card-title">Paramètres du site</h2>
+      <p className="text-sm text-base-content/70">
+        Nom, URL, description… Ces infos alimentent vos <strong>metas</strong>{" "}
+        (SEO) et l’interface.
+      </p>
 
-        <form action={saveSiteSettings} className="grid gap-6 sm:gap-7">
-          {/* Thème + email */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="form-control">
-              <span className="label">
-                <span className="label-text">Thème DaisyUI</span>
-                <span className="label-text-alt text-base-content/60">
-                  Appliqué sur &lt;html data-theme=&quot;…&quot; /&gt;
-                </span>
+      <form action={saveSiteSettings} className="grid gap-6 sm:gap-7 mt-6">
+        {/* Thème + email */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label className="form-control">
+            <span className="label">
+              <span className="label-text">Thème DaisyUI</span>
+              <span className="label-text-alt text-base-content/60">
+                Appliqué sur &lt;html data-theme=&quot;…&quot; /&gt;
               </span>
-              <select
-                name="theme"
-                className="select select-bordered w-full"
-                defaultValue={settings.theme ?? "light"}
-              >
-                {DaisyThemes.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="form-control">
-              <span className="label">
-                <span className="label-text">Email de contact</span>
-              </span>
-              <input
-                name="contactEmail"
-                type="email"
-                placeholder="contact@exemple.com"
-                defaultValue={settings.contactEmail ?? ""}
-                className="input input-bordered w-full"
-                autoComplete="email"
-              />
-            </label>
-          </div>
-
-          {/* Texte */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="form-control">
-              <span className="label">
-                <span className="label-text">Tagline (description courte)</span>
-              </span>
-              <input
-                name="tagline"
-                type="text"
-                defaultValue={settings.tagline}
-                className="input input-bordered w-full"
-              />
-            </label>
-
-            <label className="form-control">
-              <span className="label">
-                <span className="label-text">Sous-titre</span>
-              </span>
-              <input
-                name="subTitle"
-                type="text"
-                defaultValue={settings.subTitle}
-                className="input input-bordered w-full"
-              />
-            </label>
-          </div>
+            </span>
+            <select
+              name="theme"
+              className="select select-bordered w-full"
+              defaultValue={settings.theme ?? "light"}
+            >
+              {DaisyThemes.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <label className="form-control">
             <span className="label">
-              <span className="label-text">À propos</span>
+              <span className="label-text">Email de contact</span>
             </span>
-            <textarea
-              name="about"
-              defaultValue={settings.about}
-              className="textarea textarea-bordered w-full"
-              rows={3}
+            <input
+              name="contactEmail"
+              type="email"
+              placeholder="contact@exemple.com"
+              defaultValue={settings.contactEmail ?? ""}
+              className="input input-bordered w-full"
+              autoComplete="email"
+            />
+          </label>
+        </div>
+
+        {/* Texte */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label className="form-control">
+            <span className="label">
+              <span className="label-text">Tagline (description courte)</span>
+            </span>
+            <input
+              name="tagline"
+              type="text"
+              defaultValue={settings.tagline}
+              className="input input-bordered w-full"
             />
           </label>
 
-          {/* Bloc images : OG / Header / Home */}
-          <div className="grid gap-6">
-            {/* OG */}
-            <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
-              <div className="sm:pt-8">
-                <Preview src={settings.defaultOg} alt="Aperçu OG" />
-              </div>
-              <div className="grid gap-3">
-                <label className="form-control">
-                  <span className="label">
-                    <span className="label-text">Image OG par défaut</span>
-                    <span className="label-text-alt text-base-content/60">
-                      JPG, PNG, WEBP · max 8 Mo
-                    </span>
-                  </span>
-                  <input
-                    name="defaultOgFile"
-                    type="file"
-                    accept="image/*"
-                    className="file-input file-input-bordered w-full"
-                  />
-                </label>
-              </div>
-            </div>
+          <label className="form-control">
+            <span className="label">
+              <span className="label-text">Sous-titre</span>
+            </span>
+            <input
+              name="subTitle"
+              type="text"
+              defaultValue={settings.subTitle}
+              className="input input-bordered w-full"
+            />
+          </label>
+        </div>
 
-            {/* Header logo */}
-            <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
-              <div className="sm:pt-8">
-                {settings.headerLogo && (
-                  <Preview src={settings.headerLogo} alt="Aperçu Header Logo" />
-                )}
-              </div>
+        <label className="form-control">
+          <span className="label">
+            <span className="label-text">À propos</span>
+          </span>
+          <textarea
+            name="about"
+            defaultValue={settings.about}
+            className="textarea textarea-bordered w-full"
+            rows={3}
+          />
+        </label>
+
+        {/* Bloc images : OG / Header / Home */}
+        <div className="grid gap-6">
+          {/* OG */}
+          <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
+            <div className="sm:pt-8">
+              <Preview src={settings.defaultOg} alt="Aperçu OG" />
+            </div>
+            <div className="grid gap-3">
               <label className="form-control">
                 <span className="label">
-                  <span className="label-text">Logo Header</span>
+                  <span className="label-text">Image OG par défaut</span>
                   <span className="label-text-alt text-base-content/60">
                     JPG, PNG, WEBP · max 8 Mo
                   </span>
                 </span>
                 <input
-                  name="headerLogoFile"
-                  type="file"
-                  accept="image/*"
-                  className="file-input file-input-bordered w-full"
-                />
-              </label>
-            </div>
-
-            {/* Home logo */}
-            <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
-              <div className="sm:pt-8">
-                {settings.homeLogo && (
-                  <Preview src={settings.homeLogo} alt="Aperçu Home Logo" />
-                )}
-              </div>
-              <label className="form-control">
-                <span className="label">
-                  <span className="label-text">Logo Accueil</span>
-                  <span className="label-text-alt text-base-content/60">
-                    JPG, PNG, WEBP · max 8 Mo
-                  </span>
-                </span>
-                <input
-                  name="homeLogoFile"
-                  type="file"
-                  accept="image/*"
-                  className="file-input file-input-bordered w-full"
-                />
-              </label>
-            </div>
-
-            {/* Favicon */}
-            <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
-              <div className="sm:pt-8">
-                <Preview src={settings.favicon} alt="Aperçu Favicon" />
-              </div>
-              <label className="form-control">
-                <span className="label">
-                  <span className="label-text">Favicon</span>
-                  <span className="label-text-alt text-base-content/60">
-                    .ICO recommandé
-                  </span>
-                </span>
-                <input
-                  name="faviconFile"
+                  name="defaultOgFile"
                   type="file"
                   accept="image/*"
                   className="file-input file-input-bordered w-full"
@@ -201,13 +132,80 @@ export default function SiteSettingsForm({
             </div>
           </div>
 
-          <div className="card-actions pt-2">
-            <button type="submit" className="btn btn-primary w-full sm:w-auto">
-              Enregistrer
-            </button>
+          {/* Header logo */}
+          <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
+            <div className="sm:pt-8">
+              {settings.headerLogo && (
+                <Preview src={settings.headerLogo} alt="Aperçu Header Logo" />
+              )}
+            </div>
+            <label className="form-control">
+              <span className="label">
+                <span className="label-text">Logo Header</span>
+                <span className="label-text-alt text-base-content/60">
+                  JPG, PNG, WEBP · max 8 Mo
+                </span>
+              </span>
+              <input
+                name="headerLogoFile"
+                type="file"
+                accept="image/*"
+                className="file-input file-input-bordered w-full"
+              />
+            </label>
           </div>
-        </form>
-      </div>
+
+          {/* Home logo */}
+          <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
+            <div className="sm:pt-8">
+              {settings.homeLogo && (
+                <Preview src={settings.homeLogo} alt="Aperçu Home Logo" />
+              )}
+            </div>
+            <label className="form-control">
+              <span className="label">
+                <span className="label-text">Logo Accueil</span>
+                <span className="label-text-alt text-base-content/60">
+                  JPG, PNG, WEBP · max 8 Mo
+                </span>
+              </span>
+              <input
+                name="homeLogoFile"
+                type="file"
+                accept="image/*"
+                className="file-input file-input-bordered w-full"
+              />
+            </label>
+          </div>
+
+          {/* Favicon */}
+          <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
+            <div className="sm:pt-8">
+              <Preview src={settings.favicon} alt="Aperçu Favicon" />
+            </div>
+            <label className="form-control">
+              <span className="label">
+                <span className="label-text">Favicon</span>
+                <span className="label-text-alt text-base-content/60">
+                  .ICO recommandé
+                </span>
+              </span>
+              <input
+                name="faviconFile"
+                type="file"
+                accept="image/*"
+                className="file-input file-input-bordered w-full"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="card-actions pt-2">
+          <button type="submit" className="btn btn-primary w-full sm:w-auto">
+            Enregistrer
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -87,34 +87,33 @@ export default function ArticleForm({ article }: { article?: Article }) {
   return (
     <div id="article-form" className="grid gap-6">
       {/* Formulaire */}
-      <div className="card bg-base-100 shadow-sm">
-        <div className="card-body">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div>
-              <h2 className="card-title">
-                {isEdit ? "Modifier l’article" : "Nouvel article"}
-              </h2>
-              <p className="text-sm text-base-content/70">
-                {isEdit
-                  ? "Mets à jour les métadonnées et le contenu."
-                  : "Renseigne les métadonnées et colle le HTML de l’article."}
-              </p>
-            </div>
-
-            {isEdit && (
-              <a href="/admin" className="btn btn-ghost btn-sm self-start">
-                Annuler
-              </a>
-            )}
+      <div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h2 className="card-title">
+              {isEdit ? "Modifier l’article" : "Nouvel article"}
+            </h2>
+            <p className="text-sm text-base-content/70">
+              {isEdit
+                ? "Mets à jour les métadonnées et le contenu."
+                : "Renseigne les métadonnées et colle le HTML de l’article."}
+            </p>
           </div>
 
-          {/* IMPORTANT: pas d'encType quand action est une server action */}
-          <form action={saveArticle} className="grid gap-6">
-            <input type="hidden" name="id" value={isEdit ? article?.id : ""} />
+          {isEdit && (
+            <a href="/admin" className="btn btn-ghost btn-sm self-start">
+              Quitter la modification
+            </a>
+          )}
+        </div>
 
-            {/* Métadonnées */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              {/*
+        {/* IMPORTANT: pas d'encType quand action est une server action */}
+        <form action={saveArticle} className="grid gap-6">
+          <input type="hidden" name="id" value={isEdit ? article?.id : ""} />
+
+          {/* Métadonnées */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            {/*
               <label className="form-control">
                 <span className="label">
                   <span className="label-text">Slug</span>
@@ -135,148 +134,144 @@ export default function ArticleForm({ article }: { article?: Article }) {
               </label>
                   */}
 
-              <label className="form-control">
-                <span className="label">
-                  <span className="label-text">Titre</span>
-                </span>
-                <input
-                  type="text"
-                  name="title"
-                  placeholder="Titre de l’article"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="input input-bordered w-full"
-                />
-              </label>
-
-              <label className="form-control">
-                <span className="label">
-                  <span className="label-text">Auteur</span>
-                </span>
-                <input
-                  type="text"
-                  name="author"
-                  placeholder="Nom de l’auteur"
-                  required
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  className="input input-bordered w-full"
-                />
-              </label>
-
-              <label className="form-control">
-                <span className="label">
-                  <span className="label-text">Date</span>
-                  <span className="label-text-alt text-base-content/60">
-                    YYYY-MM-DD
-                  </span>
-                </span>
-                <input
-                  type="date"
-                  name="date"
-                  value={
-                    date
-                      ? /^\d{4}-\d{2}-\d{2}$/.test(date)
-                        ? date
-                        : new Date(date).toISOString().slice(0, 10)
-                      : ""
-                  }
-                  onChange={(e) => setDate(e.target.value)}
-                  className="input input-bordered w-full"
-                />
-              </label>
-            </div>
-
-            {/* Aperçu + Upload image existante */}
-            {isEdit && article?.imgPath && (
-              <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
-                <div className="sm:pt-8">
-                  <PreviewThumb src={article.imgPath} alt={article.title} />
-                </div>
-                <div className="text-xs text-base-content/60 break-all">
-                  Image actuelle : <code>{article.imgPath}</code>
-                </div>
-              </div>
-            )}
-
-            {/* Upload nouvelle image */}
-            <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
-              <label className="form-control">
-                <span className="label">
-                  <span className="label-text">Image de couverture</span>
-                  <span className="label-text-alt text-base-content/60">
-                    JPG, PNG, WEBP · max 8&nbsp;Mo
-                  </span>
-                </span>
-                <input
-                  type="file"
-                  name="image"
-                  accept="image/*"
-                  className="file-input file-input-bordered w-full"
-                  required={!isEdit}
-                  onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            </div>
-
-            {/* ALT + Accroche */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="form-control">
-                <span className="label">
-                  <span className="label-text">Texte alternatif (ALT)</span>
-                </span>
-                <input
-                  type="text"
-                  name="imageAlt"
-                  placeholder="Description de l'image"
-                  value={imageAlt}
-                  onChange={(e) => setImageAlt(e.target.value)}
-                  className="input input-bordered w-full"
-                />
-              </label>
-
-              <label className="form-control">
-                <span className="label">
-                  <span className="label-text">Accroche</span>
-                </span>
-                <input
-                  type="text"
-                  name="catchphrase"
-                  placeholder="Accroche de l’article"
-                  value={catchphrase}
-                  onChange={(e) => setCatchphrase(e.target.value)}
-                  className="input input-bordered w-full"
-                />
-              </label>
-            </div>
-
-            {/* Contenu HTML */}
             <label className="form-control">
               <span className="label">
-                <span className="label-text">Contenu HTML</span>
+                <span className="label-text">Titre</span>
               </span>
-              <textarea
-                name="htmlContent"
-                rows={12}
-                placeholder="<h1>Mon Titre</h1><p>Mon contenu…</p>"
+              <input
+                type="text"
+                name="title"
+                placeholder="Titre de l’article"
                 required
-                value={htmlContent}
-                onChange={(e) => setHtmlContent(e.target.value)}
-                className="textarea textarea-bordered font-mono w-full"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="input input-bordered w-full"
               />
             </label>
 
-            <div className="card-actions pt-2">
-              <button
-                type="submit"
-                className="btn btn-primary w-full sm:w-auto"
-              >
-                {isEdit ? "Mettre à jour" : "Enregistrer"}
-              </button>
+            <label className="form-control">
+              <span className="label">
+                <span className="label-text">Auteur</span>
+              </span>
+              <input
+                type="text"
+                name="author"
+                placeholder="Nom de l’auteur"
+                required
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                className="input input-bordered w-full"
+              />
+            </label>
+
+            <label className="form-control">
+              <span className="label">
+                <span className="label-text">Date</span>
+                <span className="label-text-alt text-base-content/60">
+                  YYYY-MM-DD
+                </span>
+              </span>
+              <input
+                type="date"
+                name="date"
+                value={
+                  date
+                    ? /^\d{4}-\d{2}-\d{2}$/.test(date)
+                      ? date
+                      : new Date(date).toISOString().slice(0, 10)
+                    : ""
+                }
+                onChange={(e) => setDate(e.target.value)}
+                className="input input-bordered w-full"
+              />
+            </label>
+          </div>
+
+          {/* Aperçu + Upload image existante */}
+          {isEdit && article?.imgPath && (
+            <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
+              <div className="sm:pt-8">
+                <PreviewThumb src={article.imgPath} alt={article.title} />
+              </div>
+              <div className="text-xs text-base-content/60 break-all">
+                Image actuelle : <code>{article.imgPath}</code>
+              </div>
             </div>
-          </form>
-        </div>
+          )}
+
+          {/* Upload nouvelle image */}
+          <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] items-start gap-4">
+            <label className="form-control">
+              <span className="label">
+                <span className="label-text">Image de couverture</span>
+                <span className="label-text-alt text-base-content/60">
+                  JPG, PNG, WEBP · max 8&nbsp;Mo
+                </span>
+              </span>
+              <input
+                type="file"
+                name="image"
+                accept="image/*"
+                className="file-input file-input-bordered w-full"
+                required={!isEdit}
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </div>
+
+          {/* ALT + Accroche */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="form-control">
+              <span className="label">
+                <span className="label-text">Texte alternatif (ALT)</span>
+              </span>
+              <input
+                type="text"
+                name="imageAlt"
+                placeholder="Description de l'image"
+                value={imageAlt}
+                onChange={(e) => setImageAlt(e.target.value)}
+                className="input input-bordered w-full"
+              />
+            </label>
+
+            <label className="form-control">
+              <span className="label">
+                <span className="label-text">Accroche</span>
+              </span>
+              <input
+                type="text"
+                name="catchphrase"
+                placeholder="Accroche de l’article"
+                value={catchphrase}
+                onChange={(e) => setCatchphrase(e.target.value)}
+                className="input input-bordered w-full"
+              />
+            </label>
+          </div>
+
+          {/* Contenu HTML */}
+          <label className="form-control">
+            <span className="label">
+              <span className="label-text">Contenu HTML</span>
+            </span>
+            <textarea
+              name="htmlContent"
+              rows={12}
+              placeholder="<h1>Mon Titre</h1><p>Mon contenu…</p>"
+              required
+              value={htmlContent}
+              onChange={(e) => setHtmlContent(e.target.value)}
+              className="textarea textarea-bordered font-mono w-full"
+            />
+          </label>
+
+          <div className="card-actions pt-2">
+            <button type="submit" className="btn btn-primary w-full sm:w-auto">
+              {isEdit ? "Mettre à jour" : "Enregistrer"}
+            </button>
+          </div>
+        </form>
       </div>
       <div className="card-actions pt-2 flex justify-end">
         <button
@@ -288,63 +283,59 @@ export default function ArticleForm({ article }: { article?: Article }) {
         </button>
       </div>
       {showPreview && (
-        <aside className="card bg-base-100 border border-base-300 shadow-sm">
-          <div className="card-body">
-            <section className="bg-base-100 border-b border-base-300 -mx-6 -mt-6 mb-6 px-6 py-6 rounded-t-xl">
-              <div className="grid md:grid-cols-2 gap-6 items-center justify-items-center md:justify-items-start">
-                {(imagePreviewUrl || (isEdit && article?.imgPath)) && (
-                  <img
-                    src={imagePreviewUrl || article?.imgPath || ""}
-                    alt={imageAlt || title || slug || "aperçu"}
-                    width={300}
-                    height={300}
-                    className="w-[90vw] md:w-[300px] h-auto object-contain rounded-xl"
-                  />
+        <div>
+          <section className="bg-base-100 border-b border-base-300 -mx-6 -mt-6 mb-6 px-6 py-6 rounded-t-xl">
+            <div className="grid md:grid-cols-2 gap-6 items-center justify-items-center md:justify-items-start">
+              {(imagePreviewUrl || (isEdit && article?.imgPath)) && (
+                <img
+                  src={imagePreviewUrl || article?.imgPath || ""}
+                  alt={imageAlt || title || slug || "aperçu"}
+                  width={300}
+                  height={300}
+                  className="w-[90vw] md:w-[300px] h-auto object-contain rounded-xl"
+                />
+              )}
+              <div className="text-center md:text-left">
+                <h1 className="text-3xl md:text-4xl font-bold leading-tight">
+                  {title || "(Titre de l’article)"}
+                </h1>
+                {(date || author) && (
+                  <p className="mt-3 text-sm text-base-content/60">
+                    {date && <>Publié le {formatDateISOFrUTC(date)}</>}
+                    {date && author && " — "}
+                    {author && (
+                      <>
+                        par <span className="font-medium">{author}</span>
+                      </>
+                    )}
+                  </p>
                 )}
-                <div className="text-center md:text-left">
-                  <h1 className="text-3xl md:text-4xl font-bold leading-tight">
-                    {title || "(Titre de l’article)"}
-                  </h1>
-                  {(date || author) && (
-                    <p className="mt-3 text-sm text-base-content/60">
-                      {date && <>Publié le {formatDateISOFrUTC(date)}</>}
-                      {date && author && " — "}
-                      {author && (
-                        <>
-                          par <span className="font-medium">{author}</span>
-                        </>
-                      )}
-                    </p>
-                  )}
-                  {catchphrase && (
-                    <p className="mt-2 text-base-content/80">{catchphrase}</p>
-                  )}
-                </div>
+                {catchphrase && (
+                  <p className="mt-2 text-base-content/80">{catchphrase}</p>
+                )}
               </div>
-            </section>
+            </div>
+          </section>
 
-            <section>
-              <article className="card bg-base-100 border border-base-300 shadow-sm">
-                <div className="card-body">
-                  <div
-                    className="prose prose-neutral md:prose-lg max-w-none
+          <section>
+            <div>
+              <div
+                className="prose prose-neutral md:prose-lg max-w-none
                              prose-headings:font-semibold
                              prose-a:text-primary hover:prose-a:opacity-90
                              prose-img:rounded-xl
                              prose-code:bg-base-200 prose-code:px-1.5 prose-code:rounded
                              prose-pre:bg-base-200 prose-pre:border prose-pre:border-base-300
                              prose-hr:border-base-300"
-                    dangerouslySetInnerHTML={{
-                      __html:
-                        htmlContent ||
-                        "<p class='opacity-60'>Prévisualisation du contenu…</p>",
-                    }}
-                  />
-                </div>
-              </article>
-            </section>
-          </div>
-        </aside>
+                dangerouslySetInnerHTML={{
+                  __html:
+                    htmlContent ||
+                    "<p class='opacity-60'>Prévisualisation du contenu…</p>",
+                }}
+              />
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );
