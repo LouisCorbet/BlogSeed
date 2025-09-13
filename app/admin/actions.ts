@@ -112,7 +112,10 @@ export async function saveArticle(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   // slug
   // const baseSlug = String(formData.get("slug") ?? "");
-  const slug = `${sanitizeSlug(title)}-${Date.now()}`;
+  const slug =
+    oldArticle?.title === title
+      ? oldArticle.slug
+      : `${sanitizeSlug(title)}-${Date.now()}`;
   const author = String(formData.get("author") ?? "").trim();
   const htmlInput = String(formData.get("htmlContent") ?? "");
 
@@ -461,7 +464,6 @@ function buildImagePrompt(title: string, catchphrase?: string) {
 const HORDE_BASE = "https://stablehorde.net/api/v2";
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY!;
 const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
-const MISTRAL_MODEL = process.env.MISTRAL_MODEL || "mistral-large-latest"; // ou "open-mistral-nemo"
 
 async function askMistralForArticle(): Promise<{
   title: string;
@@ -475,7 +477,7 @@ async function askMistralForArticle(): Promise<{
 - "title": titre accrocheur (max ~70 caractères)
 - "catchphrase": une courte accroche (max ~120 caractères)
 - "htmlInput": contenu HTML propre (paragraphes <p>, listes, sous-titres <h2>… — pas de <html> ni <body>)
-- "imagePrompt": une description VISUELLE (sans texte/lettres) pour guider une illustration carrée.
+- "imagePrompt": une description VISUELLE (sans texte/lettres) pour guider une illustration carrée, sans texte.
 - "imageAlt": texte alternatif concis et descriptif pour l'image (sans mots comme "image de")
 
 Exigences:
@@ -485,11 +487,10 @@ Exigences:
 - HTML: sémantique simple (<h2>, <p>, <ul>), utilisation de tailwind et daisyUI autant que possible
 - PAS de Markdown.`;
 
+  const siteSettings = await readSiteSettings();
+
   // Tu peux personnaliser ce "brief" pour orienter la thématique générale de l’article du jour
-  const user = `Génère un article de blog (600–900 mots) original sur le thème du minimalisme.
-Inclure 3–5 sous-parties (<h2>) et une bonne variété de composants daisyUI pour une mise en page attrayante. Inutile d'inclure le titre dans le HTML. à la fin de l'article, inclure une FAQ de 3 à 5 questions-réponses que les utilisateurs pourraient avoir tapé directement dans google.
-Optimise l'article pour le SEO, en particulier la partie FAQ avec des questions pertinentes et un script JSON-LD FAQPage (ajouté automatiquement côté front).
-Donne un "imagePrompt" purement VISUEL (scène/ambiance/objets), en évitant tout texte/lettres/logos dans l'image.`;
+  const user = siteSettings.autoPublishPrompt || "";
 
   const res = await fetch(MISTRAL_URL, {
     method: "POST",
@@ -498,7 +499,7 @@ Donne un "imagePrompt" purement VISUEL (scène/ambiance/objets), en évitant tou
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: MISTRAL_MODEL,
+      model: siteSettings.autoPublishModel || "mistral-large-latest",
       // Mistral supporte le format "json_object" (équivalent OpenAI)
       response_format: { type: "json_object" },
       messages: [
@@ -506,7 +507,7 @@ Donne un "imagePrompt" purement VISUEL (scène/ambiance/objets), en évitant tou
         { role: "user", content: user },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      // max_tokens: 2000,
     }),
     cache: "no-store",
   });
@@ -591,14 +592,14 @@ export async function saveArticleAuto() {
 
   let imgBuffer: Buffer | null = null;
   try {
-    imgBuffer = await generateWithHorde(prompt, 1024, 1024);
+    imgBuffer = await generateWithHorde(prompt, 500, 500);
   } catch (e) {
     console.warn(
       "[saveArticleAuto] Horde failed, fallback Pollinations:",
       (e as Error)?.message
     );
     try {
-      imgBuffer = await fetchPollinationsImage(prompt, 1024, 1024);
+      imgBuffer = await fetchPollinationsImage(prompt, 500, 500);
     } catch (e2) {
       console.error(
         "[saveArticleAuto] Pollinations also failed:",
@@ -633,12 +634,13 @@ export async function saveArticleAuto() {
   const htmlPath = path.join(htmlDir, `${slug}.html`);
   await atomicWrite(htmlPath, htmlInput, 0o644);
 
+  const siteSettings = await readSiteSettings();
   // (4) --- MAJ index ---
   const updated: PostIndexEntry = {
     id: articleId,
     slug,
     title,
-    author: "Louis",
+    author: siteSettings.autoPublishAuthor || "Rédaction auto",
     date: dateInputRaw,
     imgPath: `/images/${fileName}`,
     imageAlt,

@@ -1,7 +1,6 @@
 // app/admin/page.tsx
 import { readIndexAdmin, getHTML, Article } from "@/lib/store";
 import { readSiteSettings } from "@/lib/siteSettings";
-import TestButton from "../components/TestButton";
 import ArticleForm from "../components/ArticleForm";
 import ArticlesTable from "../components/ArticlesTable";
 import SiteSettingsForm from "../components/SiteSettingsForm";
@@ -53,7 +52,6 @@ export default async function AdminPage({
                 )}
               </p>
             </div>
-            <TestButton />
           </div>
         </div>
       </section>
