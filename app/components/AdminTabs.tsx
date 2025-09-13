@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import type { Article } from "@/lib/store";
 import type { SiteSettings } from "@/lib/siteSettings";
-import { FileEdit, List, Brush, CalendarClock } from "lucide-react";
+import { FileEdit, List, Brush, CalendarClock, IdCard } from "lucide-react";
 
 type Props = {
   articles: Article[];
@@ -13,26 +13,26 @@ type Props = {
   editing?: Article;
   editingHtml?: string;
   children: {
-    edit: React.ReactNode;
+    creation: React.ReactNode;
     articles: React.ReactNode;
-    appearance: React.ReactNode;
+    identity: React.ReactNode;
     autopub: React.ReactNode;
   };
 };
 
-const TAB_IDS = ["edit", "articles", "appearance", "autopub"] as const;
+const TAB_IDS = ["creation", "articles", "identity", "autopub"] as const;
 type TabId = (typeof TAB_IDS)[number];
 
 function normalizeHash(hash: string | null): `#${TabId}` {
-  const clean = (hash || "#edit").toLowerCase();
+  const clean = (hash || "#creation").toLowerCase();
   if (clean === "#articles") return "#articles";
-  if (clean === "#appearance") return "#appearance";
+  if (clean === "#identity") return "#identity";
   if (clean === "#autopub") return "#autopub";
-  return "#edit";
+  return "#creation";
 }
 
 export default function AdminTabs(props: Props) {
-  const [hash, setHash] = useState<`#${TabId}`>("#edit");
+  const [hash, setHash] = useState<`#${TabId}`>("#creation");
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -61,7 +61,7 @@ export default function AdminTabs(props: Props) {
   // remove ?edit=... when not on #edit
   useEffect(() => {
     const hasEditParam = !!searchParams?.get("edit");
-    if (hasEditParam && hash !== "#edit") {
+    if (hasEditParam && hash !== "#creation") {
       router.replace(`${pathname}${hash}`, { scroll: false });
     }
   }, [hash, pathname, router, searchParams]);
@@ -78,16 +78,18 @@ export default function AdminTabs(props: Props) {
       <nav className="flex items-center justify-start overflow-x-auto no-scrollbar">
         <div className="tabs tabs-boxed p-1 gap-2">
           <a
-            href="#edit"
+            href="#creation"
             role="tab"
             className={`tab gap-2 rounded-xl px-4 py-2 transition ${
-              isActive("edit") ? "tab-active bg-base-300" : "hover:bg-base-300"
+              isActive("creation")
+                ? "tab-active bg-base-300"
+                : "hover:bg-base-300"
             }`}
-            aria-controls="panel-edit"
-            title="Édition"
+            aria-controls="panel-creation"
+            title="Création"
           >
             <FileEdit className="w-4 h-4" />
-            <span>Édition</span>
+            <span>Création</span>
           </a>
 
           <a
@@ -107,18 +109,18 @@ export default function AdminTabs(props: Props) {
           </a>
 
           <a
-            href="#appearance"
+            href="#identity"
             role="tab"
             className={`tab gap-2 rounded-xl px-4 py-2 transition ${
-              isActive("appearance")
+              isActive("identity")
                 ? "tab-active  bg-base-300"
                 : "hover:bg-base-300"
             }`}
-            aria-controls="panel-appearance"
-            title="Apparence"
+            aria-controls="panel-identity"
+            title="Identité"
           >
-            <Brush className="w-4 h-4" />
-            <span>Apparence</span>
+            <IdCard className="w-4 h-4" />
+            <span>Identité</span>
           </a>
 
           <a
@@ -140,14 +142,14 @@ export default function AdminTabs(props: Props) {
 
       {/* PANELS */}
       <div
-        id="edit"
+        id="creation"
         role="tabpanel"
-        aria-labelledby="tab-edit"
+        aria-labelledby="tab-creation"
         className={`rounded-box bg-base-100 border border-base-300 p-6 shadow-sm ${
-          isActive("edit") ? "block" : "hidden"
+          isActive("creation") ? "block" : "hidden"
         }`}
       >
-        {props.children.edit}
+        {props.children.creation}
       </div>
 
       <div
@@ -162,14 +164,14 @@ export default function AdminTabs(props: Props) {
       </div>
 
       <div
-        id="appearance"
+        id="identity"
         role="tabpanel"
-        aria-labelledby="tab-appearance"
+        aria-labelledby="tab-identity"
         className={`rounded-box bg-base-100 border border-base-300 p-6 shadow-sm ${
-          isActive("appearance") ? "block" : "hidden"
+          isActive("identity") ? "block" : "hidden"
         }`}
       >
-        {props.children.appearance}
+        {props.children.identity}
       </div>
 
       <div

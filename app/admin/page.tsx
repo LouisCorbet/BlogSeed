@@ -45,7 +45,7 @@ export default async function AdminPage({
                 Administration
               </h1>
               <p className="text-base-content/70">
-                Gérez vos articles et l’apparence du site.
+                Gérez vos articles et l&apos;identité du site.
                 {editing && (
                   <span className="ml-1 badge badge-primary align-middle">
                     Édition : {editing.slug}
@@ -58,7 +58,7 @@ export default async function AdminPage({
         </div>
       </section>
 
-      {/* Tabs via hash (#edit, #articles, #appearance, #autopub) */}
+      {/* Tabs via hash (#creation, #articles, #identity, #autopub) */}
       <section className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         <AdminTabs
           articles={articles}
@@ -67,14 +67,14 @@ export default async function AdminPage({
           editingHtml={html ?? ""}
         >
           {{
-            edit: (
+            creation: (
               <ArticleForm
                 key={editing?.id ?? "new"}
                 article={editing ? { ...editing, html: html ?? "" } : undefined}
               />
             ),
             articles: <ArticlesTable articles={articles} />,
-            appearance: <SiteSettingsForm settings={settings} />,
+            identity: <SiteSettingsForm settings={settings} />,
             autopub: <AutoPublishSettingsForm settings={settings} />,
           }}
         </AdminTabs>

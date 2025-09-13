@@ -47,33 +47,30 @@ export default function AutoPublishSettingsForm({
       {/* ====== Bloc: Actions rapides & Activation ====== */}
       <div className="p-4 rounded-lg bg-base-200 space-y-4">
         <h3 className="font-semibold text-lg">Activation & actions rapides</h3>
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Action manuelle */}
-          <form action={publishAutoNow}>
-            <button type="submit" className="btn btn-secondary">
-              Publier un nouvel article auto
-            </button>
-          </form>
-
+        <div className="flex flex-col gap-6">
           {/* Toggle auto-save */}
-          <div className="form-control">
-            <span className="label">
-              <span className="label-text">Publication automatique</span>
-              <span className="label-text-alt text-base-content/60">
-                {isPending
-                  ? "Enregistrement..."
-                  : enabled
-                  ? "Activée"
-                  : "Désactivée"}
-              </span>
-            </span>
+          <div className="form-control flex flex-row">
             <input
               type="checkbox"
               className="toggle toggle-primary"
               checked={enabled}
               onChange={onToggle}
             />
+            <span className="ml-2 label-text-alt text-base-content/60">
+              {isPending
+                ? "Enregistrement..."
+                : enabled
+                ? "Publication automatique Activée"
+                : "Publication automatique Désactivée"}
+            </span>
           </div>
+
+          {/* Action manuelle */}
+          <form action={publishAutoNow}>
+            <button type="submit" className="btn btn-secondary">
+              Publier un nouvel article auto
+            </button>
+          </form>
         </div>
       </div>
 
@@ -123,7 +120,7 @@ export default function AutoPublishSettingsForm({
           {/* ====== Bloc: Bouton save ====== */}
           <div className="pt-2">
             <button type="submit" className="btn btn-primary w-full sm:w-auto">
-              Enregistrer
+              Enregistrer le planning
             </button>
           </div>
         </form>
@@ -179,7 +176,7 @@ export default function AutoPublishSettingsForm({
           {/* ====== Bloc: Bouton save ====== */}
           <div className="pt-2">
             <button type="submit" className="btn btn-primary w-full sm:w-auto">
-              Enregistrer
+              Enregistrer les paramètres IA
             </button>
           </div>
         </form>
