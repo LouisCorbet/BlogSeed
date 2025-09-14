@@ -1,5 +1,5 @@
 // app/components/Header.tsx  ← **Server Component**
-import { readSiteSettings, SiteSettings } from "@/lib/siteSettings";
+import { readSiteSettings, SiteSettings } from "@/lib/siteSettings.server";
 import HeaderClient from "./HeaderClient";
 
 export default async function Header() {

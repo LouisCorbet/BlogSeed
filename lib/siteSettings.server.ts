@@ -1,5 +1,6 @@
 // lib/siteSettings.ts
 import "server-only";
+export const runtime = "nodejs";
 import { promises as fs } from "fs";
 import path from "path";
 import { unstable_noStore as noStore } from "next/cache"; // ⬅️

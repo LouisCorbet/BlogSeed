@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import type { Article } from "@/lib/store";
-import type { SiteSettings } from "@/lib/siteSettings";
+import type { SiteSettings } from "@/lib/siteSettings.server";
 import { FileEdit, List, Brush, CalendarClock, IdCard } from "lucide-react";
 
 type Props = {

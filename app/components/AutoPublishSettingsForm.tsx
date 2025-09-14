@@ -6,7 +6,7 @@ import {
   publishAutoNow,
   toggleAutoPublishDirect,
 } from "@/app/admin/actions";
-import type { SiteSettings } from "@/lib/siteSettings";
+import type { SiteSettings } from "@/lib/siteSettings.server";
 import DayTimeSlots from "./DayTimeSlots";
 
 const MISTRAL_MODELS = [

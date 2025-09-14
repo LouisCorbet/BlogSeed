@@ -7,7 +7,6 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 // ==== AJOUTS UTILES EN HAUT DE FICHIER ====
 // import path from "path";                    // probable déjà importé
-import sharp from "sharp"; // `npm i sharp` (côté serveur)
 // import { v4 as uuidv4 } from "uuid";        // déjà importé chez toi
 
 import {
@@ -16,8 +15,7 @@ import {
   readSiteSettings,
   writeSiteSettings,
   type SiteSettings,
-} from "@/lib/siteSettings";
-
+} from "../../lib/siteSettings.server";
 interface PostIndexEntry {
   id: string;
   slug: string;
@@ -436,8 +434,13 @@ async function fetchPollinationsImage(prompt: string, w = 1024, h = 1024) {
 }
 
 async function saveAsWebp(buffer: Buffer, diskPath: string, quality = 78) {
-  const webp = await sharp(buffer).webp({ quality }).toBuffer();
-  await atomicWrite(diskPath, webp, 0o644);
+  const sharp = (await import("sharp")).default;
+  sharp.cache(false);
+  sharp.concurrency(1); // ou 2
+  await sharp(buffer).webp({ quality }).toFile(diskPath);
+
+  // const webp = await sharp(buffer).webp({ quality }).toBuffer();
+  // await atomicWrite(diskPath, webp, 0o644);
 }
 
 function buildImagePrompt(title: string, catchphrase?: string) {
@@ -572,6 +575,7 @@ function buildImagePromptFromText({
 // ------------------------------ Fonction principale ------------------------------
 
 export async function saveArticleAuto() {
+  console.log("okok");
   await ensureDirs();
 
   const index = await readIndexSafe();
@@ -589,53 +593,103 @@ export async function saveArticleAuto() {
 
   const fileName = `${slug}.webp`;
   const diskPath = path.join(imgDir, fileName);
+  const thumbName = `${slug}-512.webp`;
+  const thumbPath = path.join(imgDir, thumbName);
 
-  let imgBuffer: Buffer | null = null;
+  console.log("okok2");
+  const sharp = (await import("sharp")).default;
+  sharp.cache(false);
+  sharp.concurrency(1);
+
+  let sourceBuf: Buffer | null = null;
   try {
-    imgBuffer = await generateWithHorde(prompt, 500, 500);
+    // 2.a) Horde
+    sourceBuf = await generateWithHorde(prompt, 512, 512);
   } catch (e) {
     console.warn(
-      "[saveArticleAuto] Horde failed, fallback Pollinations:",
+      "[saveArticleAuto] Horde failed → Pollinations:",
       (e as Error)?.message
     );
     try {
-      imgBuffer = await fetchPollinationsImage(prompt, 500, 500);
+      // 2.b) Pollinations
+      sourceBuf = await fetchPollinationsImage(prompt, 512, 512);
     } catch (e2) {
       console.error(
-        "[saveArticleAuto] Pollinations also failed:",
+        "[saveArticleAuto] Pollinations failed → placeholder:",
         (e2 as Error)?.message
       );
-      const placeholder = await sharp({
+      // 2.c) Placeholder (écrit direct)
+      await sharp({
         create: {
-          width: 1024,
-          height: 1024,
+          width: 512,
+          height: 512,
           channels: 3,
-          background: "#eaeaea",
+          background: { r: 234, g: 234, b: 234 },
         },
       })
-        .png()
-        .toBuffer();
-      imgBuffer = placeholder;
+        .webp({ quality: 78 })
+        .toFile(diskPath);
+
+      // Miniature depuis le fichier principal (pas de buffer)
+      await sharp(diskPath)
+        .resize(512, 512, { fit: "cover" })
+        .webp({ quality: 76 })
+        .toFile(thumbPath);
+
+      // (3) --- Écrire le HTML ---
+      const htmlPath = path.join(htmlDir, `${slug}.html`);
+      await atomicWrite(htmlPath, htmlInput, 0o644);
+
+      console.log("okok3");
+      // (4) --- MAJ index ---
+      const siteSettings = await readSiteSettings();
+      const updated: PostIndexEntry = {
+        id: articleId,
+        slug,
+        title,
+        author: siteSettings.autoPublishAuthor || "Rédaction auto",
+        date: dateInputRaw,
+        imgPath: `/images/${fileName}`,
+        imageAlt,
+        catchphrase,
+        // thumbPath: `/images/${thumbName}`,
+      };
+
+      const rest = index.filter((p) => p.id !== articleId);
+      rest.push(updated);
+      await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
+
+      console.log("okok4");
+      // (5) --- Revalidate ISR ---
+      revalidatePath("/", "layout");
+      revalidatePath("/");
+      revalidatePath("/articles");
+      revalidatePath(`/articles/${slug}`);
+      return;
     }
   }
 
-  await saveAsWebp(imgBuffer!, diskPath, 78);
+  // Si on arrive ici, on a un buffer (Horde ou Pollinations)
+  try {
+    // Écrit l’image principale directement
+    await sharp(sourceBuf!).webp({ quality: 78 }).toFile(diskPath);
 
-  // (optionnel) miniature 512px
-  const thumbName = `${slug}-512.webp`;
-  const thumbPath = path.join(imgDir, thumbName);
-  const thumbWebp = await sharp(imgBuffer!)
-    .resize(512, 512, { fit: "cover" })
-    .webp({ quality: 76 })
-    .toBuffer();
-  await atomicWrite(thumbPath, thumbWebp, 0o644);
+    // Miniature depuis le fichier principal (évite de garder le gros buffer)
+    await sharp(diskPath)
+      .resize(512, 512, { fit: "cover" })
+      .webp({ quality: 76 })
+      .toFile(thumbPath);
+  } finally {
+    // libère la ref au buffer
+    sourceBuf = null;
+  }
 
   // (3) --- Écrire le HTML ---
   const htmlPath = path.join(htmlDir, `${slug}.html`);
   await atomicWrite(htmlPath, htmlInput, 0o644);
 
-  const siteSettings = await readSiteSettings();
   // (4) --- MAJ index ---
+  const siteSettings = await readSiteSettings();
   const updated: PostIndexEntry = {
     id: articleId,
     slug,
@@ -645,18 +699,25 @@ export async function saveArticleAuto() {
     imgPath: `/images/${fileName}`,
     imageAlt,
     catchphrase,
-    // thumbPath: `/images/${thumbName}`, // si utilisé côté front
+    // thumbPath: `/images/${thumbName}`,
   };
 
   const rest = index.filter((p) => p.id !== articleId);
   rest.push(updated);
   await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
 
-  // (5) --- Revalidate ISR ---
-  revalidatePath("/", "layout");
-  revalidatePath("/");
-  revalidatePath("/articles");
-  revalidatePath(`/articles/${slug}`);
+  try {
+    // ces appels ne fonctionnent que dans un contexte de requête (Server Action/Route)
+    revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath("/articles");
+    revalidatePath(`/articles/${slug}`);
+  } catch (e) {
+    console.warn(
+      "[saveArticleAuto] revalidate skipped (no request context):",
+      (e as Error)?.message
+    );
+  }
 }
 
 function parseDayTimes(s: FormDataEntryValue | null): string[] {
@@ -692,7 +753,9 @@ export async function saveAutoPublishSettings(formData: FormData) {
 
   const next = {
     ...current,
-    autoPublishEnabled: formData.get("autoPublishEnabled") === "on",
+    autoPublishEnabled: !formData.get("autoPublishEnabled")
+      ? current.autoPublishEnabled
+      : formData.get("autoPublishEnabled") === "on",
     autoPublishPrompt: String(formData.get("autoPublishPrompt") || ""),
     autoPublishModel: String(
       formData.get("autoPublishModel") || "mistral-large-latest"

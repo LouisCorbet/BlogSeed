@@ -2,7 +2,7 @@
 import type { MetadataRoute } from "next";
 import { unstable_noStore as noStore } from "next/cache";
 import { readIndex } from "@/lib/store";
-import { readSiteSettings } from "@/lib/siteSettings";
+import { readSiteSettings } from "@/lib/siteSettings.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

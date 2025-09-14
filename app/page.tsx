@@ -2,7 +2,7 @@
 import Image from "next/image";
 import type { Metadata } from "next";
 import { readIndex } from "@/lib/store";
-import { readSiteSettings } from "@/lib/siteSettings";
+import { readSiteSettings } from "@/lib/siteSettings.server";
 import ArticleSearch from "./components/ArticlesSearch";
 import AdSlot from "./components/AdSlot";
 // app/page.tsx

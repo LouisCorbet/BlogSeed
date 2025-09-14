@@ -1,6 +1,6 @@
 // app/admin/page.tsx
 import { readIndexAdmin, getHTML, Article } from "@/lib/store";
-import { readSiteSettings } from "@/lib/siteSettings";
+import { readSiteSettings } from "@/lib/siteSettings.server";
 import ArticleForm from "../components/ArticleForm";
 import ArticlesTable from "../components/ArticlesTable";
 import SiteSettingsForm from "../components/SiteSettingsForm";

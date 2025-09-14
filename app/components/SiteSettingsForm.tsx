@@ -1,7 +1,7 @@
 // app/components/SiteSettingsForm.tsx
 import Image from "next/image";
 import { saveSiteSettings } from "@/app/admin/actions";
-import { DaisyThemes, type SiteSettings } from "@/lib/siteSettings";
+import { DaisyThemes, type SiteSettings } from "@/lib/siteSettings.server";
 
 export default function SiteSettingsForm({
   settings,

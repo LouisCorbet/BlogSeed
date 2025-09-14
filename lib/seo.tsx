@@ -1,6 +1,6 @@
 // lib/seo.ts
 import type { Metadata } from "next";
-import { readSiteSettings } from "./siteSettings";
+import { readSiteSettings } from "./siteSettings.server";
 
 // Types côté contenu (adapte-les à ton store)
 export type ArticleMeta = {

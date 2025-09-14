@@ -5,7 +5,7 @@ import Script from "next/script";
 import "./globals.css";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-import { readSiteSettings } from "@/lib/siteSettings";
+import { readSiteSettings } from "@/lib/siteSettings.server";
 import GAReporter from "./components/GAReporter";
 import ConsentBanner from "./components/ConsentBanner";
 
