@@ -1,10 +1,24 @@
-// lib/siteSettings.ts
+// lib/siteSettings.server.ts
 import "server-only";
 export const runtime = "nodejs";
-import { promises as fs } from "fs";
-import path from "path";
-import { unstable_noStore as noStore } from "next/cache"; // ⬅️
 
+import { unstable_noStore as noStore } from "next/cache";
+
+/**
+ * IMPORTANT :
+ * - Aucun import 'fs' / 'path' en top-level (Edge scanne ce fichier via l'instrumentation).
+ * - On charge fs/path UNIQUEMENT à l'intérieur des fonctions, via eval(import(...)),
+ *   pour empêcher l'analyse statique du bundler Edge.
+ */
+async function nodeDeps() {
+  const fsMod: any = await (0, eval)('import("fs")');
+  const pathMod: any = await (0, eval)('import("path")');
+  const fs = fsMod.promises;
+  const path = pathMod.default || pathMod;
+  return { fs, path };
+}
+
+// ========================= Constantes & Types (safe client) =========================
 export const DaisyThemes = [
   "light",
   "dark",
@@ -45,7 +59,7 @@ export const DaisyThemes = [
 export type DaisyTheme = (typeof DaisyThemes)[number];
 
 export type AutoPublishSchedule = {
-  monday?: string[]; // ["08:00","14:30"]
+  monday?: string[];
   tuesday?: string[];
   wednesday?: string[];
   thursday?: string[];
@@ -58,26 +72,25 @@ export type SiteSettings = {
   name: string;
   url: string; // absolu (https://…)
   tagline: string;
-  // twitter?: string; // @handle ou URL
-  contactEmail?: string; // public
+  contactEmail?: string;
   defaultOg: string;
   localeDefault: string;
   titleTemplate: string;
-  headerLogo?: string; // relatif (ex: /logo.png)
-  homeLogo?: string; // relatif (ex: /logo.png)
-  favicon?: string; // relatif (ex: /favicon.ico)
-  about?: string; // description plus longue, optionnelle
-  subTitle?: string; // sous-titre, optionnel
-  theme: DaisyTheme; // thème, optionnel
+  headerLogo?: string;
+  homeLogo?: string;
+  favicon?: string;
+  about?: string;
+  subTitle?: string;
+  theme: DaisyTheme;
 
   autoPublishEnabled?: boolean; // on/off
   autoPublishPrompt?: string; // prompt IA
   autoPublishModel?: string; // modèle mistral
   autoPublishAuthor?: string; // auteur par défaut
-  // NOUVEAU
-  autoPublishSchedule?: AutoPublishSchedule;
+  autoPublishSchedule?: AutoPublishSchedule; // planning par jour
 };
 
+// ========================= Defaults =========================
 function getDefaultSettings(): SiteSettings {
   return {
     tagline: "Guides, articles et inspirations. Léger, rapide et SEO-friendly.",
@@ -110,32 +123,36 @@ function getDefaultSettings(): SiteSettings {
   };
 }
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const FILE_PATH = path.join(DATA_DIR, "site.json");
-
+// ========================= IO (Edge-safe via imports dynamiques) =========================
 export async function readSiteSettings(): Promise<SiteSettings> {
   noStore();
+  const { fs, path } = await nodeDeps();
+  const DATA_DIR = path.join(process.cwd(), "data");
+  const FILE_PATH = path.join(DATA_DIR, "site.json");
+
   try {
     const raw = await fs.readFile(FILE_PATH, "utf8");
     const parsed = JSON.parse(raw);
     return { ...getDefaultSettings(), ...parsed };
   } catch {
-    // si le fichier n'existe pas encore
+    // fichier manquant ou illisible → defaults
     return getDefaultSettings();
   }
 }
 
 export async function writeSiteSettings(next: SiteSettings): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const tmp = FILE_PATH + ".tmp";
+  const { fs, path } = await nodeDeps();
+  const DATA_DIR = path.join(process.cwd(), "data");
+  const FILE_PATH = path.join(DATA_DIR, "site.json");
+  const TMP = FILE_PATH + ".tmp";
 
-  // validation très légère (garde simple)
+  // validation très légère
   if (!next.name?.trim()) throw new Error("Le nom du site est requis.");
   if (!next.url?.startsWith("http")) throw new Error("URL du site invalide.");
-  console.log(next);
   if (!next.defaultOg?.startsWith("/"))
     throw new Error("defaultOg doit commencer par /");
 
-  await fs.writeFile(tmp, JSON.stringify(next, null, 2), "utf8");
-  await fs.rename(tmp, FILE_PATH);
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(TMP, JSON.stringify(next, null, 2), "utf8");
+  await fs.rename(TMP, FILE_PATH);
 }
