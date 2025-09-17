@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 // ==== AJOUTS UTILES EN HAUT DE FICHIER ====
 // import path from "path";                    // probable déjà importé
 // import { v4 as uuidv4 } from "uuid";        // déjà importé chez toi
-
+import { updateStatus } from "@/lib/autoPublishStatus";
 import {
   AutoPublishSchedule,
   DaisyThemes,
@@ -16,6 +16,7 @@ import {
   writeSiteSettings,
   type SiteSettings,
 } from "../../lib/siteSettings.server";
+
 interface PostIndexEntry {
   id: string;
   slug: string;
@@ -574,51 +575,69 @@ function buildImagePromptFromText({
 
 // ------------------------------ Fonction principale ------------------------------
 
-export async function saveArticleAuto() {
-  console.log("okok");
-  await ensureDirs();
-
-  const index = await readIndexSafe();
-
-  // (1) --- Récupérer l’article depuis Mistral ---
-  const { title, htmlInput, imageAlt, catchphrase, imagePrompt } =
-    await askMistralForArticle();
-
-  const slug = `${sanitizeSlug(title)}-${Date.now()}`;
-  const dateInputRaw = new Date().toISOString();
-  const articleId = uuidv4();
-
-  // (2) --- Générer l’image (Horde -> Pollinations -> placeholder) ---
-  const prompt = buildImagePromptFromText({ title, catchphrase, imagePrompt });
-
-  const fileName = `${slug}.webp`;
-  const diskPath = path.join(imgDir, fileName);
-  const thumbName = `${slug}-512.webp`;
-  const thumbPath = path.join(imgDir, thumbName);
-
-  console.log("okok2");
-  const sharp = (await import("sharp")).default;
-  sharp.cache(false);
-  sharp.concurrency(1);
-
-  let sourceBuf: Buffer | null = null;
+export async function saveArticleAutoCore() {
   try {
-    // 2.a) Horde
-    sourceBuf = await generateWithHorde(prompt, 512, 512);
-  } catch (e) {
-    console.warn(
-      "[saveArticleAuto] Horde failed → Pollinations:",
-      (e as Error)?.message
-    );
-    try {
-      // 2.b) Pollinations
-      sourceBuf = await fetchPollinationsImage(prompt, 512, 512);
-    } catch (e2) {
-      console.error(
-        "[saveArticleAuto] Pollinations failed → placeholder:",
-        (e2 as Error)?.message
-      );
-      // 2.c) Placeholder (écrit direct)
+    updateStatus("init", "Préparation des dossiers");
+    await ensureDirs();
+
+    updateStatus("load-index", "Lecture de l’index");
+    const index = await readIndexSafe();
+
+    updateStatus("ai", "Génération article (Mistral)");
+    const { title, htmlInput, imageAlt, catchphrase, imagePrompt } =
+      await askMistralForArticle();
+
+    const slug = `${sanitizeSlug(title)}-${Date.now()}`;
+    const dateInputRaw = new Date().toISOString();
+    const articleId = uuidv4();
+
+    // (2) --- Générer l’image
+    updateStatus("image", "Génération image IA");
+    const prompt = buildImagePromptFromText({
+      title,
+      catchphrase,
+      imagePrompt,
+    });
+
+    const fileName = `${slug}.webp`;
+    const diskPath = path.join(imgDir, fileName);
+    const thumbName = `${slug}-512.webp`;
+    const thumbPath = path.join(imgDir, thumbName);
+
+    const sharp = (await import("sharp")).default;
+    sharp.cache(false);
+    sharp.concurrency(1);
+
+    const tryGen = async (): Promise<Buffer | null> => {
+      try {
+        return await generateWithHorde(prompt, 512, 512);
+      } catch (e: any) {
+        console.warn("[saveArticleAuto] Horde indisponible:", e?.message);
+      }
+      try {
+        return await fetchPollinationsImage(prompt, 512, 512);
+      } catch (e: any) {
+        console.warn(
+          "[saveArticleAuto] Pollinations indisponible:",
+          e?.message
+        );
+      }
+      return null;
+    };
+
+    let buf = await tryGen();
+
+    if (buf) {
+      updateStatus("image", "Écriture image principale + thumb");
+      await sharp(buf).webp({ quality: 78 }).toFile(diskPath);
+      await sharp(diskPath)
+        .resize(512, 512, { fit: "cover" })
+        .webp({ quality: 76 })
+        .toFile(thumbPath);
+      // libère mémoire
+      buf = null;
+    } else {
+      updateStatus("image-fallback", "Écriture placeholder");
       await sharp({
         create: {
           width: 512,
@@ -629,95 +648,73 @@ export async function saveArticleAuto() {
       })
         .webp({ quality: 78 })
         .toFile(diskPath);
-
-      // Miniature depuis le fichier principal (pas de buffer)
       await sharp(diskPath)
         .resize(512, 512, { fit: "cover" })
         .webp({ quality: 76 })
         .toFile(thumbPath);
+    }
 
-      // (3) --- Écrire le HTML ---
-      const htmlPath = path.join(htmlDir, `${slug}.html`);
-      await atomicWrite(htmlPath, htmlInput, 0o644);
+    // (3) --- HTML
+    updateStatus("html", "Écriture du HTML");
+    const htmlPath = path.join(htmlDir, `${slug}.html`);
+    await atomicWrite(htmlPath, htmlInput, 0o644);
 
-      console.log("okok3");
-      // (4) --- MAJ index ---
-      const siteSettings = await readSiteSettings();
-      const updated: PostIndexEntry = {
-        id: articleId,
-        slug,
-        title,
-        author: siteSettings.autoPublishAuthor || "Rédaction auto",
-        date: dateInputRaw,
-        imgPath: `/images/${fileName}`,
-        imageAlt,
-        catchphrase,
-        // thumbPath: `/images/${thumbName}`,
-      };
+    // (4) --- Index
+    updateStatus("index", "Mise à jour de l’index");
+    const siteSettings = await readSiteSettings();
+    const updated: PostIndexEntry = {
+      id: articleId,
+      slug,
+      title,
+      author: siteSettings.autoPublishAuthor || "Rédaction auto",
+      date: dateInputRaw,
+      imgPath: `/images/${fileName}`,
+      imageAlt,
+      catchphrase,
+    };
 
-      const rest = index.filter((p) => p.id !== articleId);
-      rest.push(updated);
-      await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
+    const rest = index.filter((p) => p.id !== articleId);
+    rest.push(updated);
+    await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
 
-      console.log("okok4");
-      // (5) --- Revalidate ISR ---
+    // (5) --- Revalidate
+    // updateStatus("revalidate", "Revalidation ISR");
+    // try {
+    //   revalidatePath("/", "layout");
+    //   revalidatePath("/");
+    //   revalidatePath("/articles");
+    //   revalidatePath(`/articles/${slug}`);
+    // } catch (e: any) {
+    //   console.warn("[saveArticleAuto] revalidatePath ignorée:", e?.message);
+    // }
+
+    updateStatus("done", `Article ${slug} publié`);
+    return {
+      ok: true,
+      slug,
+      revalidatePaths: ["/", "/articles", `/articles/${slug}`],
+      revalidateLayout: true,
+    };
+  } catch (fatal: any) {
+    updateStatus("error", fatal?.message || "Erreur inconnue");
+    console.error("[saveArticleAutoCore] ERREUR FATALE:", fatal?.message);
+    return { ok: false, error: fatal?.message || "unknown_error" };
+  }
+}
+
+export async function saveArticleAuto() {
+  const res = await saveArticleAutoCore();
+  if (res?.ok) {
+    try {
       revalidatePath("/", "layout");
       revalidatePath("/");
       revalidatePath("/articles");
-      revalidatePath(`/articles/${slug}`);
-      return;
+      revalidatePath(`/articles/${res.slug}`);
+    } catch (err) {
+      console.warn("[saveArticleAuto] revalidatePath failed:", err);
     }
   }
-
-  // Si on arrive ici, on a un buffer (Horde ou Pollinations)
-  try {
-    // Écrit l’image principale directement
-    await sharp(sourceBuf!).webp({ quality: 78 }).toFile(diskPath);
-
-    // Miniature depuis le fichier principal (évite de garder le gros buffer)
-    await sharp(diskPath)
-      .resize(512, 512, { fit: "cover" })
-      .webp({ quality: 76 })
-      .toFile(thumbPath);
-  } finally {
-    // libère la ref au buffer
-    sourceBuf = null;
-  }
-
-  // (3) --- Écrire le HTML ---
-  const htmlPath = path.join(htmlDir, `${slug}.html`);
-  await atomicWrite(htmlPath, htmlInput, 0o644);
-
-  // (4) --- MAJ index ---
-  const siteSettings = await readSiteSettings();
-  const updated: PostIndexEntry = {
-    id: articleId,
-    slug,
-    title,
-    author: siteSettings.autoPublishAuthor || "Rédaction auto",
-    date: dateInputRaw,
-    imgPath: `/images/${fileName}`,
-    imageAlt,
-    catchphrase,
-    // thumbPath: `/images/${thumbName}`,
-  };
-
-  const rest = index.filter((p) => p.id !== articleId);
-  rest.push(updated);
-  await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
-
-  try {
-    // ces appels ne fonctionnent que dans un contexte de requête (Server Action/Route)
-    revalidatePath("/", "layout");
-    revalidatePath("/");
-    revalidatePath("/articles");
-    revalidatePath(`/articles/${slug}`);
-  } catch (e) {
-    console.warn(
-      "[saveArticleAuto] revalidate skipped (no request context):",
-      (e as Error)?.message
-    );
-  }
+  return res;
 }
 
 function parseDayTimes(s: FormDataEntryValue | null): string[] {
@@ -769,14 +766,21 @@ export async function saveAutoPublishSettings(formData: FormData) {
   await writeSiteSettings(next);
   revalidatePath("/admin");
 }
-
 export async function publishAutoNow() {
-  await saveArticleAuto();
-  revalidatePath("/");
-  revalidatePath("/articles");
-  revalidatePath("/admin");
+  const res = await saveArticleAutoCore();
+  if (res?.ok) {
+    try {
+      if (res.revalidateLayout) revalidatePath("/", "layout");
+      for (const p of res.revalidatePaths || []) revalidatePath(p);
+    } catch (e) {
+      console.warn(
+        "[publishAutoNow] revalidate ignorée:",
+        (e as Error).message
+      );
+    }
+  }
+  // return res;
 }
-
 export async function toggleAutoPublishDirect(enabled: boolean) {
   const current = await readSiteSettings();
   await writeSiteSettings({
