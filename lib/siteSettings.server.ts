@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // lib/siteSettings.server.ts
 import "server-only";
 export const runtime = "nodejs";

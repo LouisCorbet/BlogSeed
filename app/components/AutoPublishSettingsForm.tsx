@@ -99,7 +99,7 @@ export default function AutoPublishSettingsForm({
       case "error":
         return "Erreur pendant la publication ❌";
       default:
-        return "En attente…";
+        return "Pas d'auto-publication en cours";
     }
   })();
 
@@ -133,26 +133,9 @@ export default function AutoPublishSettingsForm({
       </div>
 
       {/* ====== Bloc: Actions rapides & Activation ====== */}
-      <div className="p-4 rounded-lg bg-base-200 space-y-4">
+      <div className="p-4 alert alert-neutral flex-col flex items-start space-y-4">
         <h3 className="font-semibold text-lg">Activation & actions rapides</h3>
         <div className="flex flex-col gap-6">
-          {/* Toggle auto-save */}
-          <div className="form-control flex flex-row items-center">
-            <input
-              type="checkbox"
-              className="toggle toggle-primary"
-              checked={enabled}
-              onChange={onToggle}
-            />
-            <span className="ml-2 label-text-alt text-base-content/60">
-              {isPending
-                ? "Enregistrement..."
-                : enabled
-                ? "Publication automatique Activée"
-                : "Publication automatique Désactivée"}
-            </span>
-          </div>
-
           {/* Action manuelle */}
           <form action={publishAutoNow}>
             <button
@@ -172,7 +155,7 @@ export default function AutoPublishSettingsForm({
                   Publication en cours…
                 </span>
               ) : (
-                "Publier un nouvel article auto"
+                "Publier un nouvel article automatique"
               )}
             </button>
           </form>
@@ -180,12 +163,35 @@ export default function AutoPublishSettingsForm({
       </div>
 
       {/* ====== Bloc: Planning ====== */}
-      <div className="p-4 rounded-lg bg-base-200">
+      <div className="p-4 alert alert-neutral flex-col flex items-start space-y-4">
         <h3 className="font-semibold text-lg mb-4">
           Planning de publication automatique
         </h3>
-        <form action={saveAutoPublishSettings} className="space-y-8">
-          <div className="flex flex-col gap-6">
+        <form action={saveAutoPublishSettings} className="space-y-8 w-full">
+          {/* Toggle auto-save */}
+          <div className="form-control flex flex-row items-center w-full">
+            <input
+              disabled
+              type="checkbox"
+              className="toggle toggle-primary"
+              checked={enabled}
+              onChange={onToggle}
+            />
+            <span className="ml-2 label-text-alt text-base-content/60">
+              {isPending ? (
+                "Enregistrement..."
+              ) : enabled ? (
+                <p>
+                  Publication automatique <b>Activée</b>
+                </p>
+              ) : (
+                <p>
+                  Publication automatique <b>Désactivée</b>
+                </p>
+              )}
+            </span>
+          </div>
+          <div className="flex flex-col gap-6 items-center">
             <DayTimeSlots
               name="times_monday"
               label="Lundi"
@@ -224,7 +230,11 @@ export default function AutoPublishSettingsForm({
           </div>
 
           <div className="pt-2">
-            <button type="submit" className="btn btn-primary w-full sm:w-auto">
+            <button
+              disabled
+              type="submit"
+              className="btn btn-primary w-full sm:w-auto"
+            >
               Enregistrer le planning
             </button>
           </div>
@@ -232,9 +242,9 @@ export default function AutoPublishSettingsForm({
       </div>
 
       {/* ====== Bloc: Prompt & paramètres IA ====== */}
-      <div className="p-4 rounded-lg bg-base-200 space-y-8">
-        <form action={saveAutoPublishSettings} className="space-y-8">
-          <div className="p-4 rounded-lg bg-base-200 space-y-2">
+      <div className="p-4 w-full alert alert-neutral flex-col flex items-start space-y-4">
+        <form action={saveAutoPublishSettings} className="space-y-8 w-full">
+          <div className="p-4 w-full space-y-2">
             <h3 className="font-semibold text-lg">Prompt IA</h3>
             <textarea
               name="autoPublishPrompt"
@@ -244,7 +254,7 @@ export default function AutoPublishSettingsForm({
             />
           </div>
 
-          <div className="p-4 rounded-lg bg-base-200 space-y-4">
+          <div className="p-4  space-y-4">
             <h3 className="font-semibold text-lg">Paramètres IA</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="form-control">

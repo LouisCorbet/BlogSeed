@@ -71,7 +71,7 @@ export default function DayTimeSlots({
   }, [defaultTimes.join("|")]);
 
   return (
-    <div className="form-control">
+    <div className="form-control w-full">
       <div className="label">
         <span className="label-text">{label}</span>
       </div>
@@ -80,6 +80,7 @@ export default function DayTimeSlots({
         {/* Ligne d'ajout */}
         <div className="flex items-center gap-2">
           <input
+            disabled
             ref={inputRef}
             type="time"
             className="input input-bordered"
@@ -87,6 +88,7 @@ export default function DayTimeSlots({
             aria-label={`Ajouter une heure pour ${label}`}
           />
           <button
+            disabled
             type="button"
             className="btn btn-outline"
             onClick={onAddClick}
@@ -98,6 +100,7 @@ export default function DayTimeSlots({
           <div className="hidden sm:flex items-center gap-1 ml-2">
             {quickAdd.map((q) => (
               <button
+                disabled
                 type="button"
                 key={q}
                 className="btn btn-xs btn-ghost"
