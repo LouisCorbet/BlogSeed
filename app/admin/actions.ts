@@ -16,6 +16,7 @@ import {
   writeSiteSettings,
   type SiteSettings,
 } from "../../lib/siteSettings.server";
+import { askMistralForArticle } from "@/lib/askMistralForArticle";
 
 interface PostIndexEntry {
   id: string;
@@ -77,7 +78,7 @@ async function atomicWrite(
   await fs.rename(tmp, filePath);
 }
 
-async function readIndexSafe(): Promise<PostIndexEntry[]> {
+export async function readIndexSafe(): Promise<PostIndexEntry[]> {
   try {
     const raw = await fs.readFile(indexFile, "utf-8");
     return JSON.parse(raw) as PostIndexEntry[];
@@ -465,87 +466,96 @@ function buildImagePrompt(title: string, catchphrase?: string) {
 // import { revalidatePath } from "next/cache";
 // + tes utilitaires: ensureDirs, readIndexSafe, atomicWrite, safeUnlink, sanitizeSlug, imgDir, htmlDir, indexFile, etc.
 
-const HORDE_BASE = "https://stablehorde.net/api/v2";
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY!;
-const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
+// const HORDE_BASE = "https://stablehorde.net/api/v2";
+// const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY!;
+// const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
 
-async function askMistralForArticle(): Promise<{
-  title: string;
-  htmlInput: string;
-  imageAlt: string;
-  catchphrase: string;
-  // facultatif si tu veux piloter l'image finement
-  imagePrompt?: string;
-}> {
-  const system = `Tu es un rédacteur web FR. Tu renvoies STRICTEMENT un JSON valide avec les clés:
-- "title": titre accrocheur (max ~70 caractères)
-- "catchphrase": une courte accroche (max ~120 caractères)
-- "htmlInput": contenu HTML propre (paragraphes <p>, listes, sous-titres <h2>… — pas de <html> ni <body>)
-- "imagePrompt": une description VISUELLE (sans texte/lettres) pour guider une illustration carrée, sans texte.
-- "imageAlt": texte alternatif concis et descriptif pour l'image (sans mots comme "image de")
+// async function askMistralForArticle(): Promise<{
+//   title: string;
+//   htmlInput: string;
+//   imageAlt: string;
+//   catchphrase: string;
+//   // facultatif si tu veux piloter l'image finement
+//   imagePrompt?: string;
+// }> {
+//   const system = `Tu es un rédacteur web FR. Tu renvoies STRICTEMENT un JSON valide avec les clés:
+// - "title": titre accrocheur (max ~70 caractères)
+// - "catchphrase": une courte accroche (max ~120 caractères)
+// - "htmlInput": contenu HTML propre (paragraphes <p>, listes, sous-titres <h2>… — pas de <html> ni <body>)
+// - "imagePrompt": une description VISUELLE (sans texte/lettres) pour guider une illustration carrée, sans texte.
+// - "imageAlt": texte alternatif concis et descriptif pour l'image (sans mots comme "image de")
 
-Exigences:
-- Langue: FR
-- Sujet: utile, concret, intemporel (conseils pratiques), optimisé SEO
-- Ton: clair, concis, pédagogique
-- HTML: sémantique simple (<h2>, <p>, <ul>), utilisation de tailwind et daisyUI autant que possible
-- PAS de Markdown.`;
+// Exigences:
+// - Langue: FR
+// - Sujet: utile, concret, intemporel (conseils pratiques), optimisé SEO
+// - Ton: clair, concis, pédagogique
+// - HTML: sémantique simple (<h2>, <p>, <ul>), utilisation de tailwind et daisyUI autant que possible
+// - PAS de Markdown.`;
 
-  const siteSettings = await readSiteSettings();
+//   const siteSettings = await readSiteSettings();
 
-  // Tu peux personnaliser ce "brief" pour orienter la thématique générale de l’article du jour
-  const user = siteSettings.autoPublishPrompt || "";
+//   // Tu peux personnaliser ce "brief" pour orienter la thématique générale de l’article du jour
+//   let user = siteSettings.autoPublishPrompt || "";
+//   user +=
+//     "\n\nL'article doit être original et différent des précédents. Voici les articles précédents déjà publiés:\n";
+//   const index = await readIndexSafe();
+//   const recent = index.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 20);
+//   for (const r of recent) {
+//     user += `- ${r.title}\n`;
+//   }
 
-  const res = await fetch(MISTRAL_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${MISTRAL_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: siteSettings.autoPublishModel || "mistral-large-latest",
-      // Mistral supporte le format "json_object" (équivalent OpenAI)
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.7,
-      // max_tokens: 2000,
-    }),
-    cache: "no-store",
-  });
+//   console.log("[saveArticleAuto] Mistral prompt:", { system, user });
 
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`Mistral API error: ${res.status} ${t}`);
-  }
+//   const res = await fetch(MISTRAL_URL, {
+//     method: "POST",
+//     headers: {
+//       Authorization: `Bearer ${MISTRAL_API_KEY}`,
+//       "Content-Type": "application/json",
+//     },
+//     body: JSON.stringify({
+//       model: siteSettings.autoPublishModel || "mistral-large-latest",
+//       // Mistral supporte le format "json_object" (équivalent OpenAI)
+//       response_format: { type: "json_object" },
+//       messages: [
+//         { role: "system", content: system },
+//         { role: "user", content: user },
+//       ],
+//       temperature: 0.7,
+//       // max_tokens: 2000,
+//     }),
+//     cache: "no-store",
+//   });
 
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Mistral: empty content");
+//   if (!res.ok) {
+//     const t = await res.text().catch(() => "");
+//     throw new Error(`Mistral API error: ${res.status} ${t}`);
+//   }
 
-  let parsed: any;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    // fallback: essaie d’extraire un JSON brut
-    const match = content.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Mistral: JSON missing");
-    parsed = JSON.parse(match[0]);
-  }
+//   const data = await res.json();
+//   const content = data?.choices?.[0]?.message?.content;
+//   if (!content) throw new Error("Mistral: empty content");
 
-  const title = (parsed.title || "").toString().trim();
-  const htmlInput = (parsed.htmlInput || "").toString().trim();
-  const imageAlt = (parsed.imageAlt || "").toString().trim();
-  const catchphrase = (parsed.catchphrase || "").toString().trim();
-  const imagePrompt = (parsed.imagePrompt || "").toString().trim();
+//   let parsed: any;
+//   try {
+//     parsed = JSON.parse(content);
+//   } catch {
+//     // fallback: essaie d’extraire un JSON brut
+//     const match = content.match(/\{[\s\S]*\}/);
+//     if (!match) throw new Error("Mistral: JSON missing");
+//     parsed = JSON.parse(match[0]);
+//   }
 
-  if (!title || !htmlInput || !imageAlt || !catchphrase) {
-    throw new Error("Mistral JSON missing required keys");
-  }
-  return { title, htmlInput, imageAlt, catchphrase, imagePrompt };
-}
+//   const title = (parsed.title || "").toString().trim();
+//   const htmlInput = (parsed.htmlInput || "").toString().trim();
+//   const imageAlt = (parsed.imageAlt || "").toString().trim();
+//   const catchphrase = (parsed.catchphrase || "").toString().trim();
+//   const imagePrompt = (parsed.imagePrompt || "").toString().trim();
+
+//   if (!title || !htmlInput || !imageAlt || !catchphrase) {
+//     throw new Error("Mistral JSON missing required keys");
+//   }
+//   return { title, htmlInput, imageAlt, catchphrase, imagePrompt };
+// }
 
 function buildImagePromptFromText({
   title,
@@ -577,6 +587,10 @@ function buildImagePromptFromText({
 
 export async function saveArticleAutoCore() {
   try {
+    const isDev =
+      (process.env.NODE_ENV || "").toLowerCase() === "development" ||
+      (process.env.NODE_ENV || "").toLowerCase() === "dev";
+
     updateStatus("init", "Préparation des dossiers");
     await ensureDirs();
 
@@ -591,14 +605,7 @@ export async function saveArticleAutoCore() {
     const dateInputRaw = new Date().toISOString();
     const articleId = uuidv4();
 
-    // (2) --- Générer l’image
-    updateStatus("image", "Génération image IA");
-    const prompt = buildImagePromptFromText({
-      title,
-      catchphrase,
-      imagePrompt,
-    });
-
+    // (2) --- Image (DEV: pas de génération IA)
     const fileName = `${slug}.webp`;
     const diskPath = path.join(imgDir, fileName);
     const thumbName = `${slug}-512.webp`;
@@ -608,50 +615,113 @@ export async function saveArticleAutoCore() {
     sharp.cache(false);
     sharp.concurrency(1);
 
-    const tryGen = async (): Promise<Buffer | null> => {
-      try {
-        return await generateWithHorde(prompt, 512, 512);
-      } catch (e: any) {
-        console.warn("[saveArticleAuto] Horde indisponible:", e?.message);
-      }
-      try {
-        return await fetchPollinationsImage(prompt, 512, 512);
-      } catch (e: any) {
-        console.warn(
-          "[saveArticleAuto] Pollinations indisponible:",
-          e?.message
-        );
-      }
-      return null;
-    };
+    if (isDev) {
+      // Mode développement : utiliser une image par défaut locale OU un placeholder simple
+      updateStatus(
+        "image-dev",
+        "DEV: utilisation d’une image par défaut (pas de génération IA)"
+      );
 
-    let buf = await tryGen();
+      // Option 1: image fixe fournie via env (ex: "public/images/dev-default.webp")
+      const devDefaultPath = "/public/default.png"; // absolu ou relatif au projet
+      let usedFallback = false;
 
-    if (buf) {
-      updateStatus("image", "Écriture image principale + thumb");
-      await sharp(buf).webp({ quality: 78 }).toFile(diskPath);
-      await sharp(diskPath)
-        .resize(512, 512, { fit: "cover" })
-        .webp({ quality: 76 })
-        .toFile(thumbPath);
-      // libère mémoire
-      buf = null;
+      if (devDefaultPath) {
+        try {
+          const abs = path.isAbsolute(devDefaultPath)
+            ? devDefaultPath
+            : path.join(process.cwd(), devDefaultPath);
+          await fs.copyFile(abs, diskPath);
+          await sharp(diskPath)
+            .resize(512, 512, { fit: "cover" })
+            .webp({ quality: 76 })
+            .toFile(thumbPath);
+        } catch (e: any) {
+          console.warn(
+            "[saveArticleAuto] DEFAULT_DEV_IMAGE_PATH introuvable:",
+            e?.message
+          );
+          usedFallback = true;
+        }
+      } else {
+        usedFallback = true;
+      }
+
+      // Option 2: si pas d’image fixe, créer un placeholder doux (sans IA)
+      if (usedFallback) {
+        await sharp({
+          create: {
+            width: 1024,
+            height: 1024,
+            channels: 3,
+            // palette douce pour ne pas jurer avec ton thème
+            background: { r: 240, g: 242, b: 245 },
+          },
+        })
+          .webp({ quality: 78 })
+          .toFile(diskPath);
+
+        await sharp(diskPath)
+          .resize(512, 512, { fit: "cover" })
+          .webp({ quality: 76 })
+          .toFile(thumbPath);
+      }
     } else {
-      updateStatus("image-fallback", "Écriture placeholder");
-      await sharp({
-        create: {
-          width: 512,
-          height: 512,
-          channels: 3,
-          background: { r: 234, g: 234, b: 234 },
-        },
-      })
-        .webp({ quality: 78 })
-        .toFile(diskPath);
-      await sharp(diskPath)
-        .resize(512, 512, { fit: "cover" })
-        .webp({ quality: 76 })
-        .toFile(thumbPath);
+      // PROD: génération IA normale
+      updateStatus("image", "Génération image IA");
+      const prompt = buildImagePromptFromText({
+        title,
+        catchphrase,
+        imagePrompt,
+      });
+
+      const tryGen = async (): Promise<Buffer | null> => {
+        try {
+          return await generateWithHorde(prompt, 512, 512);
+        } catch (e: any) {
+          console.warn(
+            "[saveArticleAuto] Horde indisponible:",
+            e?.message || e || "unknown error"
+          );
+        }
+        try {
+          return await fetchPollinationsImage(prompt, 512, 512);
+        } catch (e: any) {
+          console.warn(
+            "[saveArticleAuto] Pollinations indisponible:",
+            e?.message || e || "unknown error"
+          );
+        }
+        return null;
+      };
+
+      let buf = await tryGen();
+
+      if (buf) {
+        updateStatus("image", "Écriture image principale + thumb");
+        await sharp(buf).webp({ quality: 78 }).toFile(diskPath);
+        await sharp(diskPath)
+          .resize(512, 512, { fit: "cover" })
+          .webp({ quality: 76 })
+          .toFile(thumbPath);
+        buf = null;
+      } else {
+        updateStatus("image-fallback", "Écriture placeholder");
+        await sharp({
+          create: {
+            width: 512,
+            height: 512,
+            channels: 3,
+            background: { r: 234, g: 234, b: 234 },
+          },
+        })
+          .webp({ quality: 78 })
+          .toFile(diskPath);
+        await sharp(diskPath)
+          .resize(512, 512, { fit: "cover" })
+          .webp({ quality: 76 })
+          .toFile(thumbPath);
+      }
     }
 
     // (3) --- HTML
@@ -676,17 +746,6 @@ export async function saveArticleAutoCore() {
     const rest = index.filter((p) => p.id !== articleId);
     rest.push(updated);
     await atomicWrite(indexFile, JSON.stringify(rest, null, 2), 0o644);
-
-    // (5) --- Revalidate
-    // updateStatus("revalidate", "Revalidation ISR");
-    // try {
-    //   revalidatePath("/", "layout");
-    //   revalidatePath("/");
-    //   revalidatePath("/articles");
-    //   revalidatePath(`/articles/${slug}`);
-    // } catch (e: any) {
-    //   console.warn("[saveArticleAuto] revalidatePath ignorée:", e?.message);
-    // }
 
     updateStatus("done", `Article ${slug} publié`);
     return {

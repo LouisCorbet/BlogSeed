@@ -107,7 +107,7 @@ export default async function Home() {
           />
         </div>
       </section>
-      <AdSlot slot="1234567890" />
+      {/* <AdSlot slot="1234567890" /> */}
 
       {/* 🔎 Section Recherche + Liste filtrée */}
       <ArticleSearch items={all} />
