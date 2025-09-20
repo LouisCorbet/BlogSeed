@@ -74,6 +74,7 @@ export type SiteSettings = {
   url: string; // absolu (https://…)
   tagline: string;
   contactEmail?: string;
+  contactPhone?: string;
   defaultOg: string;
   localeDefault: string;
   titleTemplate: string;
@@ -96,6 +97,7 @@ function getDefaultSettings(): SiteSettings {
   return {
     tagline: "Guides, articles et inspirations. Léger, rapide et SEO-friendly.",
     contactEmail: "",
+    contactPhone: "",
     defaultOg: "/og-default.png",
     name: process.env.SITE_NAME || "Nope",
     url: process.env.SITE_URL || "https://blogseed.com",

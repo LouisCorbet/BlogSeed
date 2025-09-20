@@ -66,6 +66,20 @@ export default function SiteSettingsForm({
               autoComplete="email"
             />
           </label>
+
+          <label className="form-control">
+            <span className="label">
+              <span className="label-text">Téléphone de contact</span>
+            </span>
+            <input
+              name="contactPhone"
+              type="tel"
+              placeholder="+33 6 12 34 56 78"
+              defaultValue={settings.contactPhone ?? ""}
+              className="input input-bordered w-full"
+              autoComplete="tel"
+            />
+          </label>
         </div>
 
         {/* Texte */}

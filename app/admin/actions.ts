@@ -271,6 +271,8 @@ export async function saveSiteSettings(formData: FormData) {
     : undefined;
   const contactEmail =
     String(formData.get("contactEmail") ?? "").trim() || undefined;
+  const contactPhone =
+    String(formData.get("contactPhone") ?? "").trim() || undefined;
 
   const current = await readSiteSettings();
 
@@ -313,6 +315,7 @@ export async function saveSiteSettings(formData: FormData) {
     ...current,
     tagline,
     contactEmail,
+    contactPhone,
     defaultOg: newDefaultOg || current.defaultOg,
     headerLogo: newHeaderLogo || current.headerLogo,
     homeLogo: newHomeLogo || current.homeLogo,

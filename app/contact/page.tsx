@@ -1,11 +1,18 @@
 // app/contact/page.tsx
+import { readSiteSettings } from "@/lib/siteSettings.server";
 
 export const metadata = {
   title: "Contact",
   description: "Entrez en contact avec nous facilement.",
 };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const s = await readSiteSettings();
+
+  // Contenus pilotés par les settings (avec fallbacks sûrs)
+  const contactEmail = s.contactEmail || "";
+  const contactPhone = s.contactPhone || "";
+
   return (
     <main className="bg-base-200">
       {/* Hero */}
@@ -27,13 +34,16 @@ export default function ContactPage() {
             <div className="card-body items-center text-center">
               <div className="text-primary text-3xl">📧</div>
               <h2 className="card-title">Email</h2>
-              <p className="text-base-content/70">contact@monsite.com</p>
-              <a
-                href="mailto:contact@monsite.com"
-                className="btn btn-sm btn-outline mt-2"
-              >
-                Envoyer un mail
-              </a>
+              <p className="text-base-content/70">{contactEmail}</p>
+
+              {contactEmail && (
+                <a
+                  className="btn btn-sm btn-outline mt-2"
+                  href={`mailto:${contactEmail}`}
+                >
+                  {contactEmail}
+                </a>
+              )}
             </div>
           </div>
 
@@ -42,13 +52,17 @@ export default function ContactPage() {
             <div className="card-body items-center text-center">
               <div className="text-primary text-3xl">📞</div>
               <h2 className="card-title">Téléphone</h2>
-              <p className="text-base-content/70">+33 6 12 34 56 78</p>
-              <a
-                href="tel:+33612345678"
-                className="btn btn-sm btn-outline mt-2"
-              >
-                Appeler
-              </a>
+
+              <p className="text-base-content/70">{contactPhone}</p>
+
+              {contactPhone && (
+                <a
+                  className="btn btn-sm btn-outline mt-2"
+                  href={`tel:${contactPhone}`}
+                >
+                  {contactPhone}
+                </a>
+              )}
             </div>
           </div>
         </div>
