@@ -5,7 +5,6 @@ import { readSiteSettings } from "@/lib/siteSettings.server";
 export default async function Footer() {
   const s = await readSiteSettings();
 
-  // Contenus pilotés par les settings (avec fallbacks sûrs)
   const siteName = s.name || "";
   const about = s.about || "";
   const contactEmail = s.contactEmail || "";
@@ -19,10 +18,7 @@ export default async function Footer() {
           {about ? (
             <p className="text-sm text-base-content/70">{about}</p>
           ) : (
-            <p className="text-sm text-base-content/70">
-              {/* Fallback si aucun texte n’est défini dans les settings */}
-              {siteName}
-            </p>
+            <p className="text-sm text-base-content/70">{siteName}</p>
           )}
         </div>
 
@@ -54,17 +50,24 @@ export default async function Footer() {
                 </a>
               </li>
             )}
-            {/* Ajoute d’autres champs plus tard (phone, adresse) si tu les ajoutes aux settings */}
           </ul>
         </div>
       </div>
 
       {/* Bas de page */}
       <div className="border-t border-base-300 mt-6">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center text-sm text-base-content/60">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center text-sm text-base-content/60 relative">
           <p>
             © {new Date().getFullYear()} {siteName}. Tous droits réservés.
           </p>
+
+          {/* Bouton discret vers l'admin */}
+          <Link
+            href="/admin"
+            className="absolute right-2 bottom-2 opacity-10 hover:opacity-40 text-xs"
+          >
+            Admin
+          </Link>
         </div>
       </div>
     </footer>

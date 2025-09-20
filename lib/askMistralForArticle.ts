@@ -51,10 +51,10 @@ Produis UNIQUEMENT le HTML d’UNE section demandée, longue (paragraphes 6–10
 Contraintes :
 - FR, ton neutre, pédagogique, sans "je"/"nous"
 - Balises : <section id="…">, pas de titre (déjà présent en <h2> ailleurs), <h3>…</h3>, <p>, <ul>…  (pas de <html>/<body>).  Diversifie bien le contenu avec des balses <b> par exemple, et n'utilise pas de markdown.
-- Intègre 1 ou 2 composants DaisyUI si suggérés (card, alert, stats) avec sobriété : pas de alert, danger, info, ... : uniquement des bg-base-xxx ou des alert-neutral. 
+- Intègre 1 ou 2 composants DaisyUI si suggérés (card, alert, stats) avec sobriété : pas de alert, danger, info, ... : uniquement des bg-base-xxx ou des alert-neutral. dans les alert, force la disposition en colonne, plus responsive.
 - Optimiser pour le mot-clé principal fourni
 - Si id = "faq" :
-  1) <section id="faq"> avec 3–5 Q/R, chaque Q/R dans .alert DaisyUI variée
+  1) <section id="faq"> avec 3–5 Q/R, chaque Q/R dans .alert DaisyUI variée. Les questions doivent être simples et terre à terre, et les réponses courtes (1 phrase) et efficaces.
   2) À la fin du même bloc, inclure <script type="application/ld+json"> en FAQPage JSON-LD aligné avec ces Q/R
   3) exemple de FAQ à suivre : 
 <!-- Section FAQ -->
@@ -217,6 +217,16 @@ export async function askMistralForArticle(): Promise<AskMistralForArticleResult
 }
 
 /* -------------------- Génération des sections -------------------- */
+// Mutex simple basé sur une promesse + délai
+let lastCallTime = 0;
+async function waitForMinDelay(minDelayMs: number) {
+  const now = Date.now();
+  const elapsed = now - lastCallTime;
+  if (elapsed < minDelayMs) {
+    await new Promise((r) => setTimeout(r, minDelayMs - elapsed));
+  }
+  lastCallTime = Date.now();
+}
 
 async function generateSectionsInParallel({
   items,
@@ -224,12 +234,14 @@ async function generateSectionsInParallel({
   model,
   maxConcurrency = 3,
   retries = 2,
+  minDelayMs = 5000, // délai minimal en ms entre chaque requête à Mistral
 }: {
   items: OutlineItem[];
   mainKeyword: string;
   model: string;
   maxConcurrency?: number;
   retries?: number;
+  minDelayMs?: number;
 }): Promise<Record<string, string>> {
   const queue = [...items];
   const results: Record<string, string> = {};
@@ -238,6 +250,7 @@ async function generateSectionsInParallel({
   const next = async () => {
     const item = queue.shift();
     if (!item) return;
+
     const userPayload = JSON.stringify(
       {
         id: item.id,
@@ -251,6 +264,7 @@ async function generateSectionsInParallel({
     );
 
     const html = await withRetries(async () => {
+      await waitForMinDelay(minDelayMs); // 🔑 attend le délai minimal
       const raw = await callMistralRaw({
         model,
         system: SYSTEM_SECTION,
@@ -263,13 +277,13 @@ async function generateSectionsInParallel({
     console.log(`[auto-publish] Section générée : ${item.id} (${html})`);
 
     results[item.id] = html;
-    // boucle suivante
     await next();
   };
 
   for (let i = 0; i < Math.min(maxConcurrency, items.length); i++) {
     workers.push(next());
   }
+
   await Promise.all(workers);
   return results;
 }
