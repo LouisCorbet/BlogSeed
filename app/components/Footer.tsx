@@ -63,6 +63,8 @@ export default async function Footer() {
 
           {/* Bouton discret vers l'admin */}
           <Link
+            prefetch={false}
+            rel="nofollow"
             href="/admin"
             className="absolute right-2 bottom-2 opacity-10 hover:opacity-40 text-xs"
           >
