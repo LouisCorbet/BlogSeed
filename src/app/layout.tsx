@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { getSettings, SETTING_KEYS } from "@/lib/settings";
+import { AuthProvider } from "@/components/auth/auth-provider";
 
 // Métadonnées de base — enrichies par generateMetadata sur chaque page.
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,7 +35,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

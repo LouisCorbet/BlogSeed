@@ -42,9 +42,12 @@ model User {
   // Gamification
   points Int @default(0)
 
+  // Révocation de sessions (stratégie JWT) : incrémenté pour invalider
+  // tous les tokens existants ("déconnexion de toutes les sessions").
+  sessionVersion Int @default(0)
+
   // Relations
   accounts       Account[]
-  sessions       Session[]
   articles       Article[]       @relation("ArticleAuthor")
   quizzes        Quiz[]          @relation("QuizAuthor")
   comments       Comment[]
@@ -82,15 +85,9 @@ model Account {
   @@unique([provider, providerAccountId])
 }
 
-// Sessions en BDD — permet la déconnexion de toutes les sessions
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+// Sessions : non utilisées (stratégie JWT). La révocation se fait via
+// le champ User.sessionVersion. Le modèle Session de Next-Auth n'est
+// donc pas nécessaire ; l'adapter Prisma fonctionne sans lui en mode JWT.
 
 // Tokens de vérification email (Next-Auth)
 model VerificationToken {

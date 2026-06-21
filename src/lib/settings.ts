@@ -7,21 +7,40 @@ import { prisma } from "@/lib/prisma";
  *
  * Toutes les valeurs sont stockées en string ; les helpers typés
  * (getBool, getInt, getJSON) facilitent la lecture.
+ *
+ * Les lectures sont résilientes : si la base est indisponible (premier
+ * démarrage avant migration/seed, coupure momentanée), elles retournent
+ * une valeur vide/par défaut plutôt que de faire planter tout le rendu.
  */
 
 export async function getSetting(key: string): Promise<string | null> {
-  const row = await prisma.setting.findUnique({ where: { key } });
-  return row?.value ?? null;
+  try {
+    const row = await prisma.setting.findUnique({ where: { key } });
+    return row?.value ?? null;
+  } catch (error) {
+    console.error(`[settings] Lecture de "${key}" impossible :`, error);
+    return null;
+  }
 }
 
 export async function getSettings(keys: string[]): Promise<Record<string, string>> {
-  const rows = await prisma.setting.findMany({ where: { key: { in: keys } } });
-  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  try {
+    const rows = await prisma.setting.findMany({ where: { key: { in: keys } } });
+    return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  } catch (error) {
+    console.error("[settings] Lecture multiple impossible :", error);
+    return {};
+  }
 }
 
 export async function getAllSettings(): Promise<Record<string, string>> {
-  const rows = await prisma.setting.findMany();
-  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  try {
+    const rows = await prisma.setting.findMany();
+    return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  } catch (error) {
+    console.error("[settings] Lecture globale impossible :", error);
+    return {};
+  }
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {

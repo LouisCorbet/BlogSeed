@@ -114,7 +114,7 @@ Le schéma complet est dans [`prisma/schema.prisma`](prisma/schema.prisma). Enti
 ## Roadmap des phases
 
 1. ✅ **Phase 1** — Structure, Prisma, Docker
-2. ⬜ **Phase 2** — Auth, rôles, invitations
+2. ✅ **Phase 2** — Auth, rôles, invitations
 3. ⬜ **Phase 3** — Frontend public
 4. ⬜ **Phase 4** — Admin de base
 5. ⬜ **Phase 5** — Quizz
