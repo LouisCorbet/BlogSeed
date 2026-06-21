@@ -1,0 +1,118 @@
+services:
+  # ---------------------------------------------------------------
+  # Application Next.js (build production)
+  # ---------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blog_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public"
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET}"
+      NEXTAUTH_URL: "${NEXTAUTH_URL}"
+      # Le proxy Docker permet à l'app de redémarrer son propre container
+      DOCKER_HOST: "tcp://socket-proxy:2375"
+    volumes:
+      # Persistance des images uploadées
+      - ./uploads:/app/public/uploads
+    expose:
+      - "3000"
+    networks:
+      - frontend
+      - backend
+      - docker-control
+
+  # ---------------------------------------------------------------
+  # Base de données PostgreSQL
+  # ---------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: blog_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+
+  # ---------------------------------------------------------------
+  # Reverse proxy Caddy (HTTPS automatique)
+  # ---------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: blog_caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: "${DOMAIN}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - frontend
+
+  # ---------------------------------------------------------------
+  # Docker Socket Proxy — filtre l'accès au daemon Docker.
+  # N'autorise QUE le redémarrage de containers (pour OAuth/config).
+  # ---------------------------------------------------------------
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: blog_socket_proxy
+    restart: unless-stopped
+    environment:
+      # Autorisations minimales : lister et redémarrer des containers
+      CONTAINERS: 1
+      POST: 1
+      # Tout le reste est explicitement bloqué
+      AUTH: 0
+      BUILD: 0
+      COMMIT: 0
+      CONFIGS: 0
+      DISTRIBUTION: 0
+      EXEC: 0
+      IMAGES: 0
+      INFO: 0
+      NETWORKS: 0
+      NODES: 0
+      PLUGINS: 0
+      SECRETS: 0
+      SERVICES: 0
+      SESSION: 0
+      SWARM: 0
+      SYSTEM: 0
+      TASKS: 0
+      VOLUMES: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-control
+
+networks:
+  frontend:
+  backend:
+  docker-control:
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

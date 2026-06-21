@@ -1,0 +1,610 @@
+// =====================================================================
+// Schéma Prisma — Plateforme Blog Next.js (type WordPress)
+// Base de données : PostgreSQL
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================================
+// AUTHENTIFICATION & UTILISATEURS (Next-Auth v5, sessions en BDD)
+// =====================================================================
+
+enum Role {
+  READER
+  AUTHOR
+  EDITOR
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String? // null si compte Google uniquement
+  image         String? // avatar uploadé (null = initiales générées)
+  bio           String? // utilisé sur la page auteur
+  slug          String?   @unique // pour /auteur/[slug]
+  roles         Role[]    @default([READER])
+
+  // Préférences
+  themePreference  String?  @default("system") // "light" | "dark" | "system"
+  cookieConsent    Boolean? // null = pas encore choisi
+  cookieConsentAt  DateTime?
+
+  // Gamification
+  points Int @default(0)
+
+  // Relations
+  accounts       Account[]
+  sessions       Session[]
+  articles       Article[]       @relation("ArticleAuthor")
+  quizzes        Quiz[]          @relation("QuizAuthor")
+  comments       Comment[]
+  articleLikes   ArticleLike[]
+  commentLikes   CommentLike[]
+  favorites      Favorite[]
+  quizResults    QuizResult[]
+  pointsHistory  PointsHistory[]
+  activityLogs   ActivityLog[]   @relation("LogActor")
+  invitationsSent Invitation[]   @relation("InvitedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+}
+
+// Comptes OAuth (Google) — modèle standard Next-Auth
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// Sessions en BDD — permet la déconnexion de toutes les sessions
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Tokens de vérification email (Next-Auth)
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Liens d'invitation : rôle + nom pré-définis, 24h, usage unique
+model Invitation {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  email       String? // optionnel, peut être pré-rempli
+  name        String? // nom de compte pré-défini
+  roles       Role[]   @default([AUTHOR])
+  invitedById String
+  usedAt      DateTime? // null = pas encore utilisé
+  expiresAt   DateTime // createdAt + 24h
+
+  invitedBy User @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
+}
+
+// =====================================================================
+// CONTENU : ARTICLES
+// =====================================================================
+
+enum ContentStatus {
+  DRAFT      // brouillon
+  SUBMITTED  // soumis par un auteur, en attente de validation
+  SCHEDULED  // planifié (publishedAt dans le futur)
+  PUBLISHED  // publié
+}
+
+enum EditorType {
+  RICH // TipTap
+  HTML // HTML brut
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  excerpt     String? // résumé pour les listes / RSS / meta description
+  content     String        @db.Text
+  editorType  EditorType    @default(RICH)
+  status      ContentStatus @default(DRAFT)
+
+  // Image de couverture
+  coverImage       String?
+  coverImageThumb  String?
+  coverImageWidth  Int?
+  coverImageHeight Int?
+
+  // Mise en avant
+  featured Boolean @default(false)
+  pinned   Boolean @default(false)
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  canonicalUrl    String?
+  revalidateSeconds Int? // délai ISR configurable
+
+  // Affiliation
+  showAffiliateDisclosure Boolean @default(false)
+
+  // Stats
+  viewCount Int @default(0)
+
+  // Programmation
+  publishedAt DateTime?
+
+  // Relations
+  authorId    String
+  author      User           @relation("ArticleAuthor", fields: [authorId], references: [id])
+  categoryId  String?
+  category    Category?      @relation(fields: [categoryId], references: [id])
+  tags        TagsOnArticles[]
+  faqItems    FaqItem[]
+  comments    Comment[]
+  likes       ArticleLike[]
+  favorites   Favorite[]
+  versions    ArticleVersion[]
+  affiliateProducts AffiliateProductsOnArticles[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@index([authorId])
+}
+
+// Historique des versions d'un article (retour à une version précédente)
+model ArticleVersion {
+  id         String   @id @default(cuid())
+  articleId  String
+  title      String
+  content    String   @db.Text
+  editorType EditorType
+  createdAt  DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+}
+
+// FAQ par article (génère le JSON-LD FAQPage)
+model FaqItem {
+  id        String @id @default(cuid())
+  articleId String
+  question  String
+  answer    String @db.Text
+  order     Int    @default(0)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+}
+
+// =====================================================================
+// CONTENU : QUIZZ ("quel ... êtes-vous ?")
+// =====================================================================
+
+enum QuizDisplayMode {
+  ONE_BY_ONE // une question à la fois
+  ALL_AT_ONCE // toutes les questions à la suite
+}
+
+model Quiz {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  description String?       @db.Text
+  status      ContentStatus @default(DRAFT)
+  displayMode QuizDisplayMode @default(ONE_BY_ONE)
+
+  coverImage       String?
+  coverImageThumb  String?
+  coverImageWidth  Int?
+  coverImageHeight Int?
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+
+  // Stats
+  viewCount Int @default(0)
+
+  publishedAt DateTime?
+
+  authorId   String
+  author     User       @relation("QuizAuthor", fields: [authorId], references: [id])
+  categoryId String?
+  category   Category?  @relation(fields: [categoryId], references: [id])
+  tags       TagsOnQuizzes[]
+
+  profiles  QuizProfile[]
+  questions QuizQuestion[]
+  results   QuizResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([status, publishedAt])
+}
+
+// Profil résultat d'un quizz (ex: "L'Aventurier")
+model QuizProfile {
+  id          String  @id @default(cuid())
+  quizId      String
+  name        String
+  description String  @db.Text
+  image       String?
+  order       Int     @default(0)
+
+  quiz    Quiz                @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  weights QuizAnswerWeight[]
+  results QuizResult[]
+
+  @@index([quizId])
+}
+
+model QuizQuestion {
+  id     String @id @default(cuid())
+  quizId String
+  text   String
+  image  String?
+  order  Int    @default(0)
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([quizId])
+}
+
+model QuizAnswer {
+  id         String @id @default(cuid())
+  questionId String
+  text       String
+  image      String?
+  order      Int    @default(0)
+
+  question QuizQuestion       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  weights  QuizAnswerWeight[]
+
+  @@index([questionId])
+}
+
+// Pondération : une réponse attribue X points à un profil
+model QuizAnswerWeight {
+  id        String @id @default(cuid())
+  answerId  String
+  profileId String
+  weight    Int    @default(1)
+
+  answer  QuizAnswer  @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  profile QuizProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([answerId, profileId])
+  @@index([answerId])
+  @@index([profileId])
+}
+
+// Résultat obtenu par un utilisateur
+model QuizResult {
+  id        String @id @default(cuid())
+  quizId    String
+  profileId String
+  userId    String? // null si non connecté
+
+  quiz    Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  profile QuizProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  user    User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([quizId])
+  @@index([userId])
+}
+
+// =====================================================================
+// TAXONOMIE : CATÉGORIES & TAGS
+// =====================================================================
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  description String?
+  order       Int     @default(0)
+
+  articles          Article[]
+  quizzes           Quiz[]
+  affiliateProducts AffiliateProduct[] @relation("AffiliateCategory")
+
+  createdAt DateTime @default(now())
+
+  @@index([slug])
+}
+
+model Tag {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  articles TagsOnArticles[]
+  quizzes  TagsOnQuizzes[]
+
+  createdAt DateTime @default(now())
+
+  @@index([slug])
+}
+
+// Tables de jonction (many-to-many)
+model TagsOnArticles {
+  articleId String
+  tagId     String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@index([tagId])
+}
+
+model TagsOnQuizzes {
+  quizId String
+  tagId  String
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([quizId, tagId])
+  @@index([tagId])
+}
+
+// =====================================================================
+// INTERACTIONS : COMMENTAIRES, LIKES, FAVORIS
+// =====================================================================
+
+model Comment {
+  id        String  @id @default(cuid())
+  articleId String
+  userId    String
+  content   String  @db.Text
+  parentId  String? // null = commentaire racine, sinon réponse (thread 1 niveau)
+
+  article  Article       @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[]     @relation("CommentReplies")
+  likes    CommentLike[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([articleId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model ArticleLike {
+  articleId String
+  userId    String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([articleId, userId])
+  @@index([userId])
+}
+
+model CommentLike {
+  commentId String
+  userId    String
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([commentId, userId])
+  @@index([userId])
+}
+
+model Favorite {
+  articleId String
+  userId    String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([articleId, userId])
+  @@index([userId])
+}
+
+// =====================================================================
+// AFFILIATION
+// =====================================================================
+
+model AffiliateProduct {
+  id          String  @id @default(cuid())
+  slug        String  @unique // pour /go/[slug] et /produits
+  name        String
+  description String? @db.Text
+  image       String?
+  affiliateUrl String // lien externe (redirection 302)
+  ctaLabel    String  @default("Voir le produit")
+  badge       String? // ex: "Coup de cœur", "Meilleur prix"
+  categoryId  String?
+
+  clickCount Int @default(0)
+
+  category Category? @relation("AffiliateCategory", fields: [categoryId], references: [id])
+  articles AffiliateProductsOnArticles[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model AffiliateProductsOnArticles {
+  articleId String
+  productId String
+  order     Int    @default(0)
+
+  article Article          @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  product AffiliateProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, productId])
+  @@index([productId])
+}
+
+// =====================================================================
+// REDIRECTIONS (301 manuelles + automatiques)
+// =====================================================================
+
+model Redirect {
+  id          String  @id @default(cuid())
+  source      String  @unique // /ancienne-url
+  destination String // /nouvelle-url
+  statusCode  Int     @default(301)
+  automatic   Boolean @default(false) // true = créée auto suite à un changement de slug
+
+  createdAt DateTime @default(now())
+
+  @@index([source])
+}
+
+// =====================================================================
+// NEWSLETTER
+// =====================================================================
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  confirmed Boolean  @default(false)
+  token     String?  @unique // confirmation / désinscription
+
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+// =====================================================================
+// PAGES LÉGALES / STATIQUES
+// =====================================================================
+
+model Page {
+  id        String  @id @default(cuid())
+  title     String
+  slug      String  @unique
+  content   String  @db.Text
+  inFooter  Boolean @default(true)
+  order     Int     @default(0)
+
+  metaTitle       String?
+  metaDescription String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+}
+
+// =====================================================================
+// GAMIFICATION
+// =====================================================================
+
+model PointsHistory {
+  id     String @id @default(cuid())
+  userId String
+  action String // ex: "COMMENT", "ARTICLE_LIKE", "NEWSLETTER", "QUIZ_COMPLETE"
+  points Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Niveaux configurables (nom + seuil de points)
+model GamificationLevel {
+  id        String @id @default(cuid())
+  name      String
+  threshold Int    @unique // points requis pour atteindre ce niveau
+  order     Int    @default(0)
+
+  createdAt DateTime @default(now())
+}
+
+// =====================================================================
+// LOGS D'ACTIVITÉ
+// =====================================================================
+
+model ActivityLog {
+  id         String  @id @default(cuid())
+  actorId    String?
+  action     String // ex: "ARTICLE_PUBLISHED", "COMMENT_DELETED", "USER_INVITED"
+  targetType String? // ex: "Article", "Comment", "User"
+  targetId   String?
+  detail     String? @db.Text
+
+  actor User? @relation("LogActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// =====================================================================
+// CONFIGURATION GLOBALE (clé-valeur, éditable depuis l'admin)
+// Stocke : Google OAuth, SMTP, Analytics, AdSense, thème, RGPD,
+// sections landing, gamification on/off, etc.
+// =====================================================================
+
+model Setting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}

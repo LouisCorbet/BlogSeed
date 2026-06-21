@@ -1,59 +1,62 @@
-# syntax=docker.io/docker/dockerfile:1
+# =====================================================================
+# Dockerfile multi-stage — Next.js production (standalone output)
+# =====================================================================
 
-############################
-# Base (Node 20 Alpine)
-############################
-FROM node:20-alpine AS base
+# ----- Stage 1 : dépendances -----
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-############################
-# Dépendances
-############################
-FROM base AS deps
-# outils utiles si modules natifs (sharp, etc.)
-RUN apk add --no-cache libc6-compat python3 make g++ && corepack enable
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
-RUN if [ -f pnpm-lock.yaml ]; then pnpm i --frozen-lockfile; \
-    elif [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-    elif [ -f package-lock.json ]; then npm ci --no-audit --no-fund; \
-    else echo "Lockfile not found." && exit 1; fi
+COPY package.json package-lock.json* ./
+RUN npm ci
 
-############################
-# Build (Next.js standalone)
-############################
-FROM base AS builder
-ENV NEXT_TELEMETRY_DISABLED=1
+# ----- Stage 2 : build -----
+FROM node:20-alpine AS builder
+WORKDIR /app
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Assure que next.config.* a: output: 'standalone'
-RUN if [ -f pnpm-lock.yaml ]; then pnpm run build; \
-    elif [ -f yarn.lock ]; then yarn run build; \
-    elif [ -f package-lock.json ]; then npm run build; \
-    else echo "Lockfile not found." && exit 1; fi
 
-############################
-# Runner (image finale)
-############################
-FROM base AS runner
+# Génère le client Prisma puis build Next.js
+RUN npx prisma generate
+RUN npm run build
+
+# ----- Stage 3 : runner (image finale, légère) -----
+FROM node:20-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 
-# user non-root uid/gid = 1001
-RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
+ENV NODE_ENV=production
+# Désactive la télémétrie Next.js
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Bundle standalone + assets (public reste en lecture seule dans l'image)
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Utilisateur non-root
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
+# Sharp pour l'optimisation d'images
+RUN apk add --no-cache vips-dev
+
+# Copie du build standalone
+COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Dossier de données (persistance via volume nommé)
-RUN mkdir -p /app/data && chown -R 1001:1001 /app/data
-VOLUME ["/app/data"]
+# Prisma : schéma + client généré (pour les migrations au démarrage)
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Healthcheck (optionnel)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "require('http').request({host:'127.0.0.1',port:process.env.PORT||3000,path:'/'},r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1)).end()"
+# Script d'entrée : applique les migrations puis démarre
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
+
+# Dossier uploads (monté en volume)
+RUN mkdir -p ./public/uploads && chown -R nextjs:nodejs ./public/uploads
 
 USER nextjs
+
 EXPOSE 3000
-CMD ["node", "server.js"]
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+ENTRYPOINT ["./docker-entrypoint.sh"]

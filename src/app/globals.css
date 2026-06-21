@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Variables de thème par défaut.
+  Surchargées dynamiquement par la configuration admin (section Apparence)
+  via un <style> injecté dans le layout racine.
+*/
+:root {
+  --color-primary: #2563eb;
+  --color-secondary: #7c3aed;
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --color-link: #2563eb;
+  --radius-base: 0.5rem;
+  --font-base: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.dark {
+  --color-background: #0f172a;
+  --color-foreground: #f1f5f9;
+  --color-link: #60a5fa;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-base);
+}

@@ -1,0 +1,39 @@
+# =====================================================================
+# Caddyfile — reverse proxy + HTTPS automatique (Let's Encrypt)
+# La variable {$DOMAIN} est injectée depuis le .env via docker-compose
+# =====================================================================
+
+{$DOMAIN} {
+	# Compression
+	encode gzip zstd
+
+	# Headers de sécurité
+	header {
+		# HSTS
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		# Anti-clickjacking
+		X-Frame-Options "SAMEORIGIN"
+		# Anti MIME-sniffing
+		X-Content-Type-Options "nosniff"
+		# Politique de référent
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Permissions
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		# On retire le header Server
+		-Server
+	}
+
+	# Cache long pour les assets statiques Next.js
+	@static {
+		path /_next/static/* /uploads/* /favicon.ico
+	}
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	# Proxy vers l'app Next.js
+	reverse_proxy app:3000
+}
+
+# Redirection www → apex (optionnel, décommenter si besoin)
+# www.{$DOMAIN} {
+# 	redir https://{$DOMAIN}{uri} permanent
+# }
